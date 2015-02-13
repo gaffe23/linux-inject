@@ -497,7 +497,7 @@ int main(int argc, char** argv)
 	struct user_regs_struct dlopen_regs;
 	memset(&dlopen_regs, 0, sizeof(struct user_regs_struct));
 	ptrace_getregs(target, &dlopen_regs);
-	unsigned long long libAddr = malloc_regs.rax;
+	unsigned long long libAddr = dlopen_regs.rax;
 
 	// if rax is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
