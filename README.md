@@ -5,9 +5,9 @@
 
 ## Caveats
 
-* Normally the OS will only search for shared libraries in the standard library paths, so it's necessary to either prepend `./` to the name of the shared library to inject or to just supply the full path to the shared library.
+* Normally the OS will only search for shared libraries in the standard library paths, so it's necessary to either prepend `./` to the name of the shared library to inject or to just supply the full path to it.
 
-* On many Linux distributions, the kernel is configured to prevent a process from calling `ptrace()` on another process that it did not create. This feature can be disabled temporarily using the following command:
+* On many Linux distributions, the kernel is configured to prevent a process from calling `ptrace()` on any process that it did not create. This feature can be disabled temporarily (until the next reboot) using the following command:
 
         echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
