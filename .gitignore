@@ -27,3 +27,6 @@
 *.i*86
 *.x86_64
 *.hex
+inject
+target
+library.so
