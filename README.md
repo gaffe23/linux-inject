@@ -7,15 +7,19 @@
 
 * Normally the OS will only search for shared libraries in the standard library paths, so it's necessary to either prepend `./` to the name of the shared library to inject or to just supply the full path to the shared library.
 
+* On many Linux distributions, the kernel is configured to prevent a process from calling `ptrace()` on another process that it did not create. This feature can be disabled temporarily using the following command:
+
+        echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+
 * Currently only runs on x64. x86 and ARM support coming soon.
 
 * Currently has an issue where the target occasionally hits an `int 3` instruction that is not caught by the injector, which causes the target process to crash.
 
 ## Compiling
-        make
+    make
 
 ## Usage
-        ./inject [process-name] [library-to-inject]
+    ./inject [process-name] [library-to-inject]
 
 ## Sample
 * In one terminal, start up the sample target app:
@@ -27,15 +31,14 @@
         ./inject target ./library.so
 
 * The output should look something like this:
-  * First terminal:
+ * First terminal:
 
-                $ ./target
-                sleeping...
-                I just got loaded at 0x00007f568d86a000
+            $ ./target
+            sleeping...
+            I just got loaded at 0x00007f568d86a000
 
-  * Second terminal:
+ * Second terminal:
 
-                $ ./inject target ./library.so
-                found process "target" with pid 7547
-                library "./library.so" successfully injected
-
+            $ ./inject target ./library.so
+            found process "target" with pid 7547
+            library "./library.so" successfully injected
