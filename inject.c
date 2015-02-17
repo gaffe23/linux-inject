@@ -346,7 +346,7 @@ long getFunctionAddress(char* funcName)
 }
 
 // restore backed up data and regs and let the target go on its merry way
-void restoreTargetState(pid_t target, unsigned long addr, void* backup, int datasize, struct user_regs_struct oldregs)
+void restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct user_regs_struct oldregs)
 {
 	ptrace_write(target, addr, backup, datasize);
 	ptrace_setregs(target, &oldregs);
@@ -474,7 +474,7 @@ int main(int argc, char** argv)
 	if(targetBuf == 0)
 	{
 		printf("malloc() failed to allocate memory\n");
-		restoreTargetState(target, addr, backup, injectSharedLibrary_size, oldregs);
+		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
 		return 1;
@@ -503,7 +503,7 @@ int main(int argc, char** argv)
 	if(libAddr == 0)
 	{
 		printf("__libc_dlopen_mode() failed to load %s\n", libname);
-		restoreTargetState(target, addr, backup, injectSharedLibrary_size, oldregs);
+		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
 		return 1;
@@ -520,7 +520,7 @@ int main(int argc, char** argv)
 	// at this point, if everything went according to plan, we've loaded
 	// the shared library inside the target process, so we're done. restore
 	// the old state and detach from the target.
-	restoreTargetState(target, addr, backup, injectSharedLibrary_size, oldregs);
+	restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 	free(backup);
 	free(newcode);
 
