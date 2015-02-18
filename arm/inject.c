@@ -222,18 +222,6 @@ void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 	}
 }
 
-// only used for debugging
-void ptrace_printregs(pid_t target)
-{
-	struct user_regs regs;
-	memset(&regs, 0, sizeof(struct user_regs));
-	ptrace_getregs(target, &regs);
-	for(int i = 0; i < 16; i++)
-	{
-		printf("r%d: 0x%08lx\n", i, regs.uregs[i]);
-	}
-}
-
 // this is the code that will actually be injected into the target process.
 // this code is responsible for loading the shared library into the target
 // process' address space.  first, it calls malloc() to allocate a buffer to
@@ -245,24 +233,51 @@ void ptrace_printregs(pid_t target)
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
 
-	// push the addresses of the functions we want to call in the reverse
-	// of the order we want to call them in (except for the first call)
+	// r1 = address of raise()
+	// r2 = address of malloc()
+	// r3 = address of __libc_dlopen_mode()
+	// r4 = address of free()
 	//
-	// r1 = raise
-	// r2 = malloc
-	// r3 = dlopen
-	// r4 = free
-	// 
-	// we want to call malloc, raise, dlopen, raise, free, raise, so we'll
-	// push r1 (raise), r4 (free), r1 (raise), r3 (dlopen), r1 (raise).
+	// unfortunately, each function call we make will wipe out these
+	// register values, so in order to save the function addresses, we need
+	// to save them on the stack.
+	//
+	// here's the sequence of calls we're going to make:
+	//
+	// * malloc() - allocate a buffer to store the path to the shared
+	// library to load
+	//
+	// * raise() - raise a SIGTRAP signal to break into the target process
+	// so that we can check the return value of malloc() in order to know
+	// where to copy the shared library path to
+	//
+	// * __libc_dlopen_mode() - load the shared library
+	//
+	// * raise() - raise a SIGTRAP signal to break into the target process
+	// to check the return value of __libc_dlopen_mode() in order to see
+	// whether it succeeded
+	//
+	// * free() - free the buffer containing the path to the shared library
+	//
+	// * raise() - raise a SIGTRAP signal to break into the target process
+	// so that we can restore the parts of memory that we overwrote
+	//
+	// we need to push the addresses of the functions we want to call in
+	// the reverse of the order we want to call them in (except for the
+	// first call):
 
-	asm("push {r1}");	// raise
-	asm("push {r4}");	// free
-	asm("push {r1}");	// raise
-	asm("push {r3}");	// dlopen
-	asm("push {r1}");	// raise
+	asm("push {r1}");	// raise()
+	asm("push {r4}");	// free()
+	asm("push {r1}");	// raise()
+	asm("push {r3}");	// __libc_dlopen_mode()
+	asm("push {r1}");	// raise()
 
-	// call malloc() to allocate 32 bytes
+	// call malloc() to allocate 32 bytes to store the path to the shared library to inject.
+
+	// TODO: the amount of memory to allocate should really be determined
+	// by the actual length of the path to the library; as-is, this is not
+	// likely to work if the path is longer than 32 characters.
+
 	asm(
 		// specify 32 bytes
 		"mov r0, #32 \n"
@@ -272,7 +287,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r5, r0"
 	);
 
-	// call raise() in order to return control of the target's execution
+	// call raise(SIGTRAP) to get back control of the target.
 	asm(
 		// pop off the stack to get the address of raise()
 		"pop {r1} \n"
@@ -282,7 +297,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"blx r1"
 	);
 
-	// call __libc_dlopen_mode()
+	// call __libc_dlopen_mode() to actually load the shared library.
 	asm(
 		// pop off the stack to get the address of __libc_dlopen_mode()
 		"pop {r2} \n"
@@ -296,7 +311,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r4, r0"
 	);
 
-	// call raise() in order to return control of the target's execution
+	// call raise(SIGTRAP) to get back control of the target.
 	asm(
 		// pop off the stack to get the address of raise()
 		"pop {r1} \n"
@@ -306,7 +321,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"blx r1"
 	);
 
-	// call free()
+	// call free() in order to free the buffer containing the path to the shared library.
 	asm(
 		// pop off the stack to get the address of free()
 		"pop {r2} \n"
@@ -318,7 +333,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r4, r0"
 	);
 
-	// call raise() in order to return control of the target's execution
+	// call raise(SIGTRAP) to get back control of the target.
 	asm(
 		// pop off the stack to get the address of raise()
 		"pop {r1} \n"
@@ -373,7 +388,6 @@ int main(int argc, char** argv)
 	long freeAddr = getFunctionAddress("free");
 	long dlopenAddr = getFunctionAddress("__libc_dlopen_mode");
 	long raiseAddr = getFunctionAddress("raise");
-	printf("address of raise(): 0x%08lx\n", raiseAddr);
 
 	// use the base address of libc to calculate offsets for the syscalls
 	// we want to use
@@ -381,11 +395,6 @@ int main(int argc, char** argv)
 	long freeOffset = freeAddr - mylibcaddr;
 	long dlopenOffset = dlopenAddr - mylibcaddr;
 	long raiseOffset = raiseAddr - mylibcaddr;
-
-	printf("mallocOffset: 0x%08lx\n", mallocOffset);
-	printf("freeOffset: 0x%08lx\n", freeOffset);
-	printf("dlopenOffset: 0x%08lx\n", dlopenOffset);
-	printf("raiseOffset: 0x%08lx\n", raiseOffset);
 
 	pid_t target = findProcessByName(processName);
 	if(target == -1)
@@ -404,11 +413,6 @@ int main(int argc, char** argv)
 	long targetDlopenAddr = targetLibcAddr + dlopenOffset;
 	long targetRaiseAddr = targetLibcAddr + raiseOffset;
 
-	printf("targetMallocAddr: 0x%08lx\n", targetMallocAddr);
-	printf("targetFreeAddr: 0x%08lx\n", targetFreeAddr);
-	printf("targetDlopenAddr: 0x%08lx\n", targetDlopenAddr);
-	printf("targetRaiseAddr: 0x%08lx\n", targetRaiseAddr);
-
 	struct user_regs oldregs, regs;
 	memset(&oldregs, 0, sizeof(struct user_regs));
 	memset(&regs, 0, sizeof(struct user_regs));
@@ -421,59 +425,42 @@ int main(int argc, char** argv)
 	// find a good address to copy code to
 	long addr = freespaceaddr(target) + sizeof(long);
 
-	// now that we have an address to copy code to, set the target's rip to
-	// it.
+	// now that we have an address to copy code to, set the target's
+	// program counter to it.
 	//
-	// we have to advance by 2 bytes here for some reason. I have a feeling
-	// this is because rip gets incremented by the size of the current
-	// instruction, and the instruction at the start of the function to
-	// inject always happens to be 2 bytes long, but I never looked into it
-	// further.
+	// subtract 4 bytes from the actual address, because ARM's PC actually
+	// refers to the next instruction rather than the current instruction.
 	regs.uregs[15] = addr - 4;
 
 	// pass arguments to my function injectSharedLibrary() by loading them
-	// into the right registers. note that this will definitely only work
-	// on x64, because it relies on the x64 calling convention, in which
-	// arguments are passed via registers rdi, rsi, rdx, rcx, r8, and r9.
-	// see comments in injectSharedLibrary() for more details.
-	//regs.uregs[0] = targetMallocAddr;
-	//regs.uregs[1] = targetFreeAddr;
-	//regs.uregs[2] = targetDlopenAddr;
+	// into the right registers. see comments in injectSharedLibrary() for
+	// more details.
 	regs.uregs[1] = targetRaiseAddr;
 	regs.uregs[2] = targetMallocAddr;
 	regs.uregs[3] = targetDlopenAddr;
 	regs.uregs[4] = targetFreeAddr;
 
 	ptrace_setregs(target, &regs);
-	//printf("setting target regs to:\n");
-	//printregs(target);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
-
 	int injectSharedLibrary_size = (int)injectSharedLibrary_end - (int)injectSharedLibrary;
 
 	// back up whatever data used to be at the address we want to modify.
 	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
 	ptrace_read(target, addr, backup, injectSharedLibrary_size);
 
-	// set up a buffer containing a bunch of nops, followed by an int 3 to
-	// return control back to us.
+	// set up a buffer containing the code that we'll inject into the target process.
 	char* newcode = malloc(injectSharedLibrary_size * sizeof(char));
 	memset(newcode, 0, injectSharedLibrary_size * sizeof(char));
 
-	// copy the code of injectSharedLibrary() to a buffer.
+	// copy the code of injectSharedLibrary() to the buffer.
 	memcpy(newcode, injectSharedLibrary, injectSharedLibrary_size);
-	// overwrite the RET instruction with an INT 3.
-	//newcode[injectSharedLibrary_ret] = INTEL_INT3_INSTRUCTION;
 
 	// copy injectSharedLibrary()'s code to the target address inside the
 	// target process' address space.
 	ptrace_write(target, addr, newcode, injectSharedLibrary_size);
 
-	//ptrace_printregs(target);
-
-	// now that the new code is in place, let the target run our injected
-	// code.
+	// now that the new code is in place, let the target run our injected code.
 	ptrace_cont(target);
 
 	// at this point, the target should have run malloc(). check its return
@@ -482,7 +469,8 @@ int main(int argc, char** argv)
 	memset(&malloc_regs, 0, sizeof(struct user_regs));
 	ptrace_getregs(target, &malloc_regs);
 	unsigned long long targetBuf = malloc_regs.uregs[5];
-	ptrace_printregs(target);
+
+	// if r5 is 0 here, then malloc failed, and we should bail out cleanly.
 	if(targetBuf == 0)
 	{
 		printf("malloc() failed to allocate memory\n");
@@ -491,16 +479,14 @@ int main(int argc, char** argv)
 		free(newcode);
 		return 1;
 	}
-	printf("malloc() return value: 0x%08llx\n", targetBuf);
 
 	// if we get here, then malloc likely succeeded, so now we need to copy
 	// the path to the shared library we want to inject into the buffer
 	// that the target process just malloc'd. this is needed so that it can
 	// be passed as an argument to dlopen later on.
 
-	// read the current value of rax, which contains malloc's return value,
-	// and copy the name of our shared library to that address inside the
-	// target process.
+	// read the buffer returned by malloc() and copy the name of our shared
+	// library to that address inside the target process.
 	ptrace_write(target, targetBuf, libname, strlen(libname)*sizeof(char));
 
 	// continue the target's execution again in order to call dlopen.
@@ -511,9 +497,8 @@ int main(int argc, char** argv)
 	memset(&dlopen_regs, 0, sizeof(struct user_regs));
 	ptrace_getregs(target, &dlopen_regs);
 	unsigned long long libAddr = dlopen_regs.uregs[4];
-	ptrace_printregs(target);
 
-	// if rax is 0 here, then dlopen failed, and we should bail out cleanly.
+	// if r4 is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
 	{
 		printf("__libc_dlopen_mode() failed to load %s\n", libname);
@@ -523,7 +508,8 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	// if rax is nonzero, then our library was successfully injected.
+	// if __libc_dlopen_mode() returned a nonzero value, then our library
+	// was successfully injected.
 	printf("library \"%s\" successfully injected\n", libname);
 
 	// as a courtesy, free the buffer that we allocated inside the target
