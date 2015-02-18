@@ -11,7 +11,7 @@
 
         echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
-* Currently only runs on x64. x86 and ARM support coming soon.
+* Currently runs on x86_64 and ARM. x86 support coming soon.
 
 * Currently has an issue where the target occasionally hits an `int 3` instruction that is not caught by the injector, which causes the target process to crash.
 
@@ -19,6 +19,10 @@
 * arm:
 
         make arm
+
+* x86 (not yet working):
+
+        make x86
 
 * x86_64:
 
