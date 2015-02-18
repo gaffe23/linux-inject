@@ -256,8 +256,8 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	// we want to call malloc, raise, dlopen, raise, free, raise, so we'll
 	// push r1 (raise), r4 (free), r1 (raise), r3 (dlopen), r1 (raise).
 
-	//asm("push {r1}");	// raise
-	//asm("push {r4}");	// free
+	asm("push {r1}");	// raise
+	asm("push {r4}");	// free
 	asm("push {r1}");	// raise
 	asm("push {r3}");	// dlopen
 	asm("push {r1}");	// raise
@@ -269,7 +269,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		// call malloc(), whose address is already in r2
 		"blx r2 \n"
 		// copy return value r0 into r4 so that it doesn't get wiped out later
-		"mov r4, r0"
+		"mov r5, r0"
 	);
 
 	// call raise() in order to return control of the target's execution
@@ -286,9 +286,8 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm(
 		// pop off the stack to get the address of __libc_dlopen_mode()
 		"pop {r2} \n"
-		// copy r4 (the malloc'd buffer) into r0 to make it the first argument to
-		// __libc_dlopen_mode()
-		"mov r0, r4 \n"
+		// copy r5 (the malloc'd buffer) into r0 to make it the first argument to __libc_dlopen_mode()
+		"mov r0, r5 \n"
 		// set the second argument to RTLD_LAZY
 		"mov r1, #1 \n"
 		// call __libc_dlopen_mode()
@@ -308,6 +307,26 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	);
 
 	// call free()
+	asm(
+		// pop off the stack to get the address of free()
+		"pop {r2} \n"
+		// copy r5 (the malloc'd buffer) into r0 to make it the first argument to free()
+		"mov r0, r5 \n"
+		// call __libc_dlopen_mode()
+		"blx r2 \n"
+		// copy return value r0 into r4 so that it doesn't get wiped out later
+		"mov r4, r0"
+	);
+
+	// call raise() in order to return control of the target's execution
+	asm(
+		// pop off the stack to get the address of raise()
+		"pop {r1} \n"
+		// specify SIGTRAP
+		"mov r0, #5 \n"
+		// call raise()
+		"blx r1"
+	);
 }
 
 // this function's only purpose in life is to be contiguous to injectSharedLibrary(),
@@ -462,7 +481,7 @@ int main(int argc, char** argv)
 	struct user_regs malloc_regs;
 	memset(&malloc_regs, 0, sizeof(struct user_regs));
 	ptrace_getregs(target, &malloc_regs);
-	unsigned long long targetBuf = malloc_regs.uregs[4];
+	unsigned long long targetBuf = malloc_regs.uregs[5];
 	ptrace_printregs(target);
 	if(targetBuf == 0)
 	{
@@ -510,7 +529,7 @@ int main(int argc, char** argv)
 	// as a courtesy, free the buffer that we allocated inside the target
 	// process. we don't really care whether this succeeds, so don't
 	// bother checking the return value.
-	//ptrace_cont(target);
+	ptrace_cont(target);
 
 	// at this point, if everything went according to plan, we've loaded
 	// the shared library inside the target process, so we're done. restore

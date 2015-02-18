@@ -13,9 +13,6 @@ void sleepfunc()
 	while(1)
 	{
 		printf("sleeping...\n");
-		//
-		printf("mallocing memory at 0x%p\n", malloc(32));
-		//
 		nanosleep(sleeptime, NULL);
 	}
 
