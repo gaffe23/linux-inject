@@ -16,7 +16,13 @@
 * Currently has an issue where the target occasionally hits an `int 3` instruction that is not caught by the injector, which causes the target process to crash.
 
 ## Compiling
-    make
+* arm:
+
+        make arm
+
+* x86_64:
+
+        make x86_64
 
 ## Usage
     ./inject [process-name] [library-to-inject]
