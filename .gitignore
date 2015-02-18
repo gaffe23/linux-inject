@@ -27,6 +27,8 @@
 *.i*86
 *.x86_64
 *.hex
+
+# Specific binary names
 inject
 target
 library.so
