@@ -244,32 +244,68 @@ void ptrace_printregs(pid_t target)
 // instruction.
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
+
+	// push the addresses of the functions we want to call in the reverse
+	// of the order we want to call them in (except for the first call)
+	//
 	// r1 = raise
-	asm("push {r1}");
 	// r2 = malloc
-	asm("push {r2}");
-	// call raise() with arg 5 in order to break into the debugger using SIGTRAP signal
-	asm(
-		"mov r0, #5 \n"
-		"blx r1"
-	);
+	// r3 = dlopen
+	// r4 = free
+	// 
+	// we want to call malloc, raise, dlopen, raise, free, raise, so we'll
+	// push r1 (raise), r4 (free), r1 (raise), r3 (dlopen), r1 (raise).
+
+	//asm("push {r1}");	// raise
+	//asm("push {r4}");	// free
+	asm("push {r1}");	// raise
+	asm("push {r3}");	// dlopen
+	asm("push {r1}");	// raise
+
 	// call malloc() to allocate 32 bytes
-	asm("pop {r1}");
 	asm(
+		// specify 32 bytes
 		"mov r0, #32 \n"
-		"blx r1"
-	);
-	// copy r0 (the return value of malloc()) into r4
-	asm("mov r4,r0");
-	// call raise() again to let us know that we're done and we can restore the target state
-	asm("pop {r1}");
-	asm(
-		"mov r0, #5 \n"
-		"blx r1"
+		// call malloc(), whose address is already in r2
+		"blx r2 \n"
+		// copy return value r0 into r4 so that it doesn't get wiped out later
+		"mov r4, r0"
 	);
 
+	// call raise() in order to return control of the target's execution
+	asm(
+		// pop off the stack to get the address of raise()
+		"pop {r1} \n"
+		// specify SIGTRAP
+		"mov r0, #5 \n"
+		// call raise()
+		"blx r1"
+	);
 
 	// call __libc_dlopen_mode()
+	asm(
+		// pop off the stack to get the address of __libc_dlopen_mode()
+		"pop {r2} \n"
+		// copy r4 (the malloc'd buffer) into r0 to make it the first argument to
+		// __libc_dlopen_mode()
+		"mov r0, r4 \n"
+		// set the second argument to RTLD_LAZY
+		"mov r1, #1 \n"
+		// call __libc_dlopen_mode()
+		"blx r2 \n"
+		// copy return value r0 into r4 so that it doesn't get wiped out later
+		"mov r4, r0"
+	);
+
+	// call raise() in order to return control of the target's execution
+	asm(
+		// pop off the stack to get the address of raise()
+		"pop {r1} \n"
+		// specify SIGTRAP
+		"mov r0, #5 \n"
+		// call raise()
+		"blx r1"
+	);
 
 	// call free()
 }
@@ -386,6 +422,8 @@ int main(int argc, char** argv)
 	//regs.uregs[2] = targetDlopenAddr;
 	regs.uregs[1] = targetRaiseAddr;
 	regs.uregs[2] = targetMallocAddr;
+	regs.uregs[3] = targetDlopenAddr;
+	regs.uregs[4] = targetFreeAddr;
 
 	ptrace_setregs(target, &regs);
 	//printf("setting target regs to:\n");
@@ -413,26 +451,19 @@ int main(int argc, char** argv)
 	// target process' address space.
 	ptrace_write(target, addr, newcode, injectSharedLibrary_size);
 
-	ptrace_printregs(target);
+	//ptrace_printregs(target);
 
 	// now that the new code is in place, let the target run our injected
 	// code.
 	ptrace_cont(target);
 
-	ptrace_printregs(target);
-
-	// now do it again, just to see if it will work.
-	ptrace_cont(target);
-
-	ptrace_printregs(target);
-
-/*
 	// at this point, the target should have run malloc(). check its return
 	// value to see if it succeeded, and bail out cleanly if it didn't.
 	struct user_regs malloc_regs;
 	memset(&malloc_regs, 0, sizeof(struct user_regs));
 	ptrace_getregs(target, &malloc_regs);
-	unsigned long long targetBuf = malloc_regs.uregs[0];
+	unsigned long long targetBuf = malloc_regs.uregs[4];
+	ptrace_printregs(target);
 	if(targetBuf == 0)
 	{
 		printf("malloc() failed to allocate memory\n");
@@ -460,7 +491,8 @@ int main(int argc, char** argv)
 	struct user_regs dlopen_regs;
 	memset(&dlopen_regs, 0, sizeof(struct user_regs));
 	ptrace_getregs(target, &dlopen_regs);
-	unsigned long long libAddr = dlopen_regs.uregs[0];
+	unsigned long long libAddr = dlopen_regs.uregs[4];
+	ptrace_printregs(target);
 
 	// if rax is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
@@ -478,7 +510,7 @@ int main(int argc, char** argv)
 	// as a courtesy, free the buffer that we allocated inside the target
 	// process. we don't really care whether this succeeds, so don't
 	// bother checking the return value.
-	ptrace_cont(target);*/
+	//ptrace_cont(target);
 
 	// at this point, if everything went according to plan, we've loaded
 	// the shared library inside the target process, so we're done. restore

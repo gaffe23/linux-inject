@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include "library.h"
 #include <dlfcn.h>
 
 void hello()
@@ -12,5 +11,5 @@ void loadMsg()
 {
 	Dl_info  info;
 	dladdr(hello, &info);
-	printf("I just got loaded at 0x%016llx\n", (unsigned long long)info.dli_fbase);
+	printf("I just got loaded at 0x%08lx\n", (unsigned long)info.dli_fbase);
 }
