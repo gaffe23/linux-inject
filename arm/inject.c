@@ -361,11 +361,9 @@ long getFunctionAddress(char* funcName)
 // restore backed up data and regs and let the target go on its merry way
 void restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct user_regs oldregs)
 {
-	printf("restoring target state...\n");
 	ptrace_write(target, addr, backup, datasize);
 	ptrace_setregs(target, &oldregs);
 	ptrace_detach(target);
-	printf("done\n");
 }
 
 int main(int argc, char** argv)
