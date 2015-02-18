@@ -1,10 +1,13 @@
 CC	= clang
 
 all:
-	$(error Please choose an arch to build for: "make arm", "make x86_64")
+	$(error Please choose an arch to build for: "make arm", "make x86", "make x86_64")
 
 arm: target library.o
 	make -C arm/
+
+x86: target library.o
+	make -C x86/
 	
 x86_64: target library.o
 	make -C x86_64/
