@@ -1,7 +1,7 @@
 # linux-inject
 **Tool for injecting a shared library into a currently running process on Linux.**
 
-`linux-inject` is intended to provide the Linux equivalent of using `CreateRemoteThread()` on Windows to inject a DLL into a running process.
+`linux-inject` is intended to provide the Linux equivalent of using `CreateRemoteThread()` on Windows to inject a DLL into a running process. It supports x86, x86_64, and ARM.
 
 ## Caveats
 
@@ -11,8 +11,6 @@
 
         echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
-* Currently runs on x86_64 and ARM. x86 support coming soon.
-
 * Currently has an issue where the target occasionally hits an `int 3` instruction that is not caught by the injector, which causes the target process to crash.
 
 ## Compiling
@@ -20,7 +18,7 @@
 
         make arm
 
-* x86 (not yet working):
+* x86:
 
         make x86
 
