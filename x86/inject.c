@@ -242,77 +242,44 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	// here are the assumptions I'm making about what data will be located where
 	// when the target ends up calling this function:
 	//
-	//   edi = address of malloc() in target process
+	//   ebx = address of malloc() in target process
+	//   edi = address of __libc_dlopen_mode() in target process
 	//   esi = address of free() in target process
-	//   edx = address of __libc_dlopen_mode() in target process
+
+	// for some reason it's adding 1 to esi, so subtract 1 from it
+	asm("dec %esi");
 
 	// call malloc() from within the target process
 
 	asm(
-		// esi is going to contain the address of free(). it's going to get wiped
-		// out by the call to malloc(), so save it on the stack for later
-		"push %esi \n"
-		// same thing for edx, which will contain the address of _dl_open()
-		"push %edx \n"
-		// save previous value of ebx, because we're going to use it to call malloc() with
-		"push %ebx \n"
-		// now move the address of malloc() into ebx
-		"mov %edi,%ebx \n"
-		// choose the amount of memory to allocate with malloc(). 32 bytes should be enough.
-		// on x86, we push this onto the stack instead of passing it via a register.
+		// allocate 32 bytes
 		"push $0x20 \n"
-		// now call ebx in order to call malloc()
+		// call malloc
 		"call *%ebx \n"
-		// after returning from malloc(), pop the previous value of ebx off the stack
-		"pop %ebx \n"
-		// break in so that we can see what malloc() returned
+		// copy return value into ebx
+		"mov %eax, %ebx \n"
+		// break into debugger
 		"int $3"
 	);
-
 	// now call __libc_dlopen_mode()
-
 	asm(
-		// get the address of __libc_dlopen_mode() off of the stack so we can call it
-		"pop %edx \n"
-		// as before, save the previous value of ebx on the stack
+		// flag = RTLD_LAZY
+		"push $1 \n"
+		// push malloc addr
 		"push %ebx \n"
-		// copy the address of __libc_dlopen_mode() into ebx
-		"mov %edx,%ebx \n"
-		// the address of the buffer returned by malloc() is going to be the first argument to dlopen
-		"mov %eax,%edi \n"
-		// set dlopen's flag argument to 1, aka RTLD_LAZY
-		"mov $1,%esi \n"
-		// now call dlopen
-		"call *%ebx \n"
-		// restore old ebx value
-		"pop %ebx \n"
-		// break in so that we can see what dlopen returned
+		// call dlopen
+		"call *%edi \n"
+		// break into debugger
 		"int $3"
 	);
 
-	// now call free(). I found that if you put nonzero values in ebx,
-	// free() assumes they are memory addresses and actually tries to free
-	// them, so I apparently have to call it using a register that's not
-	// used as part of the x64 calling convention. I chose ebx.
+	// now call free()
 
 	asm(
-		// at this point, eax should still contain our malloc()d buffer from earlier.
-		// we're going to free() it, so move eax into edi to make it the first argument to free().
-		"mov %eax,%edi \n"
-		//pop esi so that we can get the address to free(), which we pushed onto the stack a while ago.
-		"pop %esi \n"
-		// save previous ebx value
+		// push the address we want to free (the address we malloc'd earler)
 		"push %ebx \n"
-		// load the address of free() into ebx
-		"mov %esi,%ebx \n"
-		// zero out esi, because free() might think that it contains something that should be freed
-		"xor %esi,%esi \n"
-		// break in so that we can check out the arguments right before making the call
-		"int $3 \n"
 		// call free()
-		"call *%ebx \n"
-		// restore previous ebx value
-		"pop %ebx"
+		"call *%esi"
 	);
 }
 
@@ -374,19 +341,11 @@ int main(int argc, char** argv)
 	long freeAddr = getFunctionAddress("free");
 	long dlopenAddr = getFunctionAddress("__libc_dlopen_mode");
 
-	printf("mallocAddr = 0x%08lx\n", mallocAddr);
-	printf("freeAddr = 0x%08lx\n", freeAddr);
-	printf("dlopenAddr = 0x%08lx\n", dlopenAddr);
-
 	// use the base address of libc to calculate offsets for the syscalls
 	// we want to use
 	long mallocOffset = mallocAddr - mylibcaddr;
 	long freeOffset = freeAddr - mylibcaddr;
 	long dlopenOffset = dlopenAddr - mylibcaddr;
-
-	printf("mallocOffset = 0x%08lx\n", mallocOffset);
-	printf("freeOffset = 0x%08lx\n", freeOffset);
-	printf("dlopenOffset = 0x%08lx\n", dlopenOffset);
 
 	pid_t target = findProcessByName(processName);
 	if(target == -1)
@@ -404,10 +363,6 @@ int main(int argc, char** argv)
 	long targetFreeAddr = targetLibcAddr + freeOffset;
 	long targetDlopenAddr = targetLibcAddr + dlopenOffset;
 
-	printf("targetMallocAddr = 0x%08lx\n", targetMallocAddr);
-	printf("targetFreeAddr = 0x%08lx\n", targetFreeAddr);
-	printf("targetDlopenAddr = 0x%08lx\n", targetDlopenAddr);
-
 	struct user_regs_struct oldregs, regs;
 	memset(&oldregs, 0, sizeof(struct user_regs_struct));
 	memset(&regs, 0, sizeof(struct user_regs_struct));
@@ -415,6 +370,7 @@ int main(int argc, char** argv)
 	ptrace_attach(target);
 
 	ptrace_getregs(target, &oldregs);
+
 	memcpy(&regs, &oldregs, sizeof(struct user_regs_struct));
 
 	// find a good address to copy code to
@@ -422,26 +378,18 @@ int main(int argc, char** argv)
 
 	// now that we have an address to copy code to, set the target's eip to
 	// it.
-	//
-	// we have to advance by 2 bytes here for some reason. I have a feeling
-	// this is because eip gets incremented by the size of the current
-	// instruction, and the instruction at the start of the function to
-	// inject always happens to be 2 bytes long, but I never looked into it
-	// further.
-	regs.eip = addr + 2;
+	regs.eip = addr;
 
 	// pass arguments to my function injectSharedLibrary() by loading them
 	// into the right registers. note that this will definitely only work
 	// on x64, because it relies on the x64 calling convention, in which
 	// arguments are passed via registers edi, esi, edx, rcx, r8, and r9.
 	// see comments in injectSharedLibrary() for more details.
-	regs.edi = targetMallocAddr;
+	regs.ebx = targetMallocAddr;
+	regs.edi = targetDlopenAddr;
 	regs.esi = targetFreeAddr;
-	regs.edx = targetDlopenAddr;
 
 	ptrace_setregs(target, &regs);
-	//printf("setting target regs to:\n");
-	//printregs(target);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
 
@@ -483,7 +431,7 @@ int main(int argc, char** argv)
 	struct user_regs_struct malloc_regs;
 	memset(&malloc_regs, 0, sizeof(struct user_regs_struct));
 	ptrace_getregs(target, &malloc_regs);
-	unsigned long long targetBuf = malloc_regs.eax;
+	unsigned long targetBuf = malloc_regs.eax;
 	if(targetBuf == 0)
 	{
 		printf("malloc() failed to allocate memory\n");
@@ -492,8 +440,6 @@ int main(int argc, char** argv)
 		free(newcode);
 		return 1;
 	}
-
-	printf("malloc() return value: 0x%08llx\n", targetBuf);
 
 	// if we get here, then malloc likely succeeded, so now we need to copy
 	// the path to the shared library we want to inject into the buffer
@@ -505,7 +451,6 @@ int main(int argc, char** argv)
 	// target process.
 	ptrace_write(target, targetBuf, libname, strlen(libname)*sizeof(char));
 
-	// continue the target's execution again in order to call dlopen.
 	ptrace_cont(target);
 
 	// check out what the registers look like after calling dlopen. 
