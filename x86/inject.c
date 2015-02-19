@@ -238,9 +238,8 @@ void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 // instruction.
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
-	// we're relying heavily on the x64 calling convention to make this work.
 	// here are the assumptions I'm making about what data will be located where
-	// when the target ends up calling this function:
+	// at the time the target executes this code:
 	//
 	//   ebx = address of malloc() in target process
 	//   edi = address of __libc_dlopen_mode() in target process
@@ -250,18 +249,20 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm("dec %esi");
 
 	// call malloc() from within the target process
-
 	asm(
 		// allocate 32 bytes
+		// TODO: intelligently choose the amount of memory to allocate
+		// here instead of always allocating 32 bytes
 		"push $0x20 \n"
 		// call malloc
 		"call *%ebx \n"
 		// copy return value into ebx
 		"mov %eax, %ebx \n"
-		// break into debugger
+		// break into debugger so we can get the return value
 		"int $3"
 	);
-	// now call __libc_dlopen_mode()
+
+	// call __libc_dlopen_mode() to load the shared library
 	asm(
 		// flag = RTLD_LAZY
 		"push $1 \n"
@@ -269,16 +270,15 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"push %ebx \n"
 		// call dlopen
 		"call *%edi \n"
-		// break into debugger
+		// break into debugger so we can check the return value
 		"int $3"
 	);
 
-	// now call free()
-
+	// call free() on the previously malloc()ed buffer
 	asm(
 		// push the address we want to free (the address we malloc'd earler)
 		"push %ebx \n"
-		// call free()
+		// call free
 		"call *%esi"
 	);
 }
@@ -292,9 +292,9 @@ void injectSharedLibrary_end()
 // starting at an address somewhere after the end of a function, search for the
 // "ret" instruction that ends it. this should be safe, because function
 // addresses are word-aligned and padded with "nop"s, so we'll basically search
-// through a bunch of "nop"s before finding our "ret". in other words, there's
-// no chance we'll run into a 0xc3 byte that corresponds to anything other than
-// an actual RET instruction.
+// through a bunch of "nop"s before finding our "ret". in other words, it's
+// unlikely that we'll run into a 0xc3 byte that corresponds to anything other
+// than an actual RET instruction.
 unsigned char* findRet(void* endAddr)
 {
 	unsigned char* retInstAddr = endAddr;
@@ -370,46 +370,40 @@ int main(int argc, char** argv)
 	ptrace_attach(target);
 
 	ptrace_getregs(target, &oldregs);
-
 	memcpy(&regs, &oldregs, sizeof(struct user_regs_struct));
 
 	// find a good address to copy code to
 	long addr = freespaceaddr(target) + sizeof(long);
 
-	// now that we have an address to copy code to, set the target's eip to
-	// it.
+	// now that we have an address to copy code to, set the target's eip to it.
 	regs.eip = addr;
 
 	// pass arguments to my function injectSharedLibrary() by loading them
-	// into the right registers. note that this will definitely only work
-	// on x64, because it relies on the x64 calling convention, in which
-	// arguments are passed via registers edi, esi, edx, rcx, r8, and r9.
-	// see comments in injectSharedLibrary() for more details.
+	// into the right registers. see comments in injectSharedLibrary() for
+	// more details.
 	regs.ebx = targetMallocAddr;
 	regs.edi = targetDlopenAddr;
 	regs.esi = targetFreeAddr;
-
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
-
 	int injectSharedLibrary_size = (int)injectSharedLibrary_end - (int)injectSharedLibrary;
 
 	// also figure out where the RET instruction at the end of
 	// injectSharedLibrary() lies so that we can overwrite it with an INT 3
-	// in order to break back into the target process. note that on x64,
-	// gcc and clang both force function addresses to be word-aligned,
-	// which means that functions are padded with NOPs. as a result, even
-	// though we've found the length of the function, it is very likely
-	// padded with NOPs, so we need to actually search to find the RET.
+	// in order to break back into the target process. gcc and clang both
+	// force function addresses to be word-aligned, which means that
+	// functions are padded at the end after the RET instruction that ends
+	// the function. as a result, even though in theory we've found the
+	// length of the function, it is very likely padded with NOPs, so we
+	// still need to do a bit of searching to find the RET.
 	int injectSharedLibrary_ret = (int)findRet(injectSharedLibrary_end) - (int)injectSharedLibrary;
 
 	// back up whatever data used to be at the address we want to modify.
 	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
 	ptrace_read(target, addr, backup, injectSharedLibrary_size);
 
-	// set up a buffer containing a bunch of nops, followed by an int 3 to
-	// return control back to us.
+	// set up the buffer containing the code to inject into the target process.
 	char* newcode = malloc(injectSharedLibrary_size * sizeof(char));
 	memset(newcode, 0, injectSharedLibrary_size * sizeof(char));
 
@@ -422,8 +416,7 @@ int main(int argc, char** argv)
 	// target process' address space.
 	ptrace_write(target, addr, newcode, injectSharedLibrary_size);
 
-	// now that the new code is in place, let the target run our injected
-	// code.
+	// now that the new code is in place, let the target run our injected code.
 	ptrace_cont(target);
 
 	// at this point, the target should have run malloc(). check its return
@@ -451,6 +444,7 @@ int main(int argc, char** argv)
 	// target process.
 	ptrace_write(target, targetBuf, libname, strlen(libname)*sizeof(char));
 
+	// now call __libc_dlopen_mode() to attempt to load the shared library.
 	ptrace_cont(target);
 
 	// check out what the registers look like after calling dlopen. 
