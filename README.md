@@ -7,7 +7,7 @@
 
 * Supports x86, x86_64, and ARM
 
-* Does not require the target process to have been built with `-ldl` flag, because it loads the shared library using `__libc_dlopen_mode()` from libc rather than the `dlopen()` from libdl
+* Does not require the target process to have been built with `-ldl` flag, because it loads the shared library using `__libc_dlopen_mode()` from libc rather than `dlopen()` from libdl
 
 ## Caveats
 
@@ -98,3 +98,7 @@
 * Eliminate the need for inline assembly, if possible.
 
 * The target occasionally raises a `SIGTRAP` signal that is not caught by the injector, which causes the target process to core dump.
+
+* The ARM injector does not properly detect a failure to inject the library, so it says that the injection succeeded when it actually didn't.
+
+* Refactor/clean up the code that calculates function offsets; it calls dlopen() more times than necessary and should probably be put into a separate function.
