@@ -245,6 +245,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	//   rdi = address of malloc() in target process
 	//   rsi = address of free() in target process
 	//   rdx = address of __libc_dlopen_mode() in target process
+	//   rcx = size of the path to the shared library we want to load
 
 	// call malloc() from within the target process
 
@@ -258,8 +259,9 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"push %r9 \n"
 		// now move the address of malloc() into r9
 		"mov %rdi,%r9 \n"
-		// choose the amount of memory to allocate with malloc(). 32 bytes should be enough.
-		"movabs $0x20,%rdi \n"
+		// choose the amount of memory to allocate with malloc() based on the size
+		// of the path to the shared library passed via ecx
+		"mov %rcx,%rdi \n"
 		// now call r9 in order to call malloc()
 		"callq *%r9 \n"
 		// after returning from malloc(), pop the previous value of r9 off the stack
@@ -363,6 +365,8 @@ int main(int argc, char** argv)
 
 	char* processName = argv[1];
 	char* libname = argv[2];
+	char* libPath = realpath(libname, NULL);
+	int libPathLength = strlen(libPath) + 1;
 
 	int mypid = getpid();
 	long mylibcaddr = getlibcaddr(mypid);
@@ -425,6 +429,7 @@ int main(int argc, char** argv)
 	regs.rdi = targetMallocAddr;
 	regs.rsi = targetFreeAddr;
 	regs.rdx = targetDlopenAddr;
+	regs.rcx = libPathLength;
 
 	ptrace_setregs(target, &regs);
 	//printf("setting target regs to:\n");
@@ -488,7 +493,7 @@ int main(int argc, char** argv)
 	// read the current value of rax, which contains malloc's return value,
 	// and copy the name of our shared library to that address inside the
 	// target process.
-	ptrace_write(target, targetBuf, libname, strlen(libname)*sizeof(char));
+	ptrace_write(target, targetBuf, libPath, libPathLength);
 
 	// continue the target's execution again in order to call dlopen.
 	ptrace_cont(target);
