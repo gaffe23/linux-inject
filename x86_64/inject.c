@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <wait.h>
 #include <dlfcn.h>
+#include "../ptrace.h"
 
 #define INTEL_RET_INSTRUCTION 0xc3
 #define INTEL_INT3_INSTRUCTION 0xcc
@@ -187,6 +188,9 @@ void ptrace_cont(pid_t target)
 		fprintf(stderr, "ptrace(PTRACE_CONT) failed\n");
 		exit(1);
 	}
+
+	// make sure the target process received SIGTRAP after stopping.
+	checktargetsig(target);
 }
 
 void ptrace_setregs(pid_t target, struct user_regs_struct* regs)
@@ -253,10 +257,12 @@ void checktargetsig(int pid)
 {
 	// check the signal that the child stopped with.
 	siginfo_t targetsig = ptrace_getsiginfo(pid);
-	printf("target sig: %d\n", targetsig.si_signo);
-	if(targetsig.si_signo != SIGCHLD)
+
+	// if it wasn't SIGTRAP, then something bad happened (most likely a
+	// segfault).
+	if(targetsig.si_signo != SIGTRAP)
 	{
-		fprintf(stderr, "target stopped with signal %d instead of SIGCHLD\n", targetsig.si_signo);
+		fprintf(stderr, "target stopped with signal %d instead of SIGTRAP\n", targetsig.si_signo);
 		exit(1);
 	}
 }
@@ -509,9 +515,6 @@ int main(int argc, char** argv)
 	// now that the new code is in place, let the target run our injected
 	// code.
 	ptrace_cont(target);
-
-	// make sure the target process received SIGCHLD after stopping.
-	checktargetsig(target);
 
 	// at this point, the target should have run malloc(). check its return
 	// value to see if it succeeded, and bail out cleanly if it didn't.
