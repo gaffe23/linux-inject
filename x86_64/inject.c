@@ -134,7 +134,7 @@ long getlibcaddr(pid_t pid)
 	fp = fopen(filename, "r");
 	if(fp == NULL)
 		exit(1);
-	while(fgets(line, 85, fp) != NULL)
+	while(fgets(line, 850, fp) != NULL)
 	{
 		sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
 		if(strstr(line, "libc") != NULL)
