@@ -366,6 +366,13 @@ int main(int argc, char** argv)
 	char* processName = argv[1];
 	char* libname = argv[2];
 	char* libPath = realpath(libname, NULL);
+
+	if(!libPath)
+	{
+		fprintf(stderr, "can't find file \"%s\"\n", libname);
+		return 1;
+	}
+
 	int libPathLength = strlen(libPath) + 1;
 
 	int mypid = getpid();
