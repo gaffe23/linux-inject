@@ -198,6 +198,17 @@ void ptrace_setregs(pid_t target, struct user_regs_struct* regs)
 	}
 }
 
+siginfo_t ptrace_getsiginfo(pid_t target)
+{
+	siginfo_t targetsig;
+	if(ptrace(PTRACE_GETSIGINFO, target, NULL, &targetsig) == -1)
+	{
+		fprintf(stderr, "ptrace(PTRACE_GETSIGINFO) failed\n");
+		exit(1);
+	}
+	return targetsig;
+}
+
 // used http://www.ars-informatica.com/Root/Code/2010_04_18/LinuxPTrace.aspx as a reference for this
 void ptrace_read(int pid, unsigned long addr, void *vptr, int len)
 {
@@ -209,6 +220,11 @@ void ptrace_read(int pid, unsigned long addr, void *vptr, int len)
 	while (bytesRead < len)
 	{
 		word = ptrace(PTRACE_PEEKTEXT, pid, addr + bytesRead, NULL);
+		if(word == -1)
+		{
+			fprintf(stderr, "ptrace(PTRACE_PEEKTEXT) failed\n");
+			exit(1);
+		}
 		bytesRead += sizeof(word);
 		ptr[i++] = word;
 	}
@@ -224,7 +240,24 @@ void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
 	{
 		memcpy(&word, vptr + byteCount, sizeof(word));
 		word = ptrace(PTRACE_POKETEXT, pid, addr + byteCount, word);
+		if(word == -1)
+		{
+			fprintf(stderr, "ptrace(PTRACE_POKETEXT) failed\n");
+			exit(1);
+		}
 		byteCount += sizeof(word);
+	}
+}
+
+void checktargetsig(int pid)
+{
+	// check the signal that the child stopped with.
+	siginfo_t targetsig = ptrace_getsiginfo(pid);
+	printf("target sig: %d\n", targetsig.si_signo);
+	if(targetsig.si_signo != SIGCHLD)
+	{
+		fprintf(stderr, "target stopped with signal %d instead of SIGCHLD\n", targetsig.si_signo);
+		exit(1);
 	}
 }
 
@@ -459,8 +492,8 @@ int main(int argc, char** argv)
 	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
 	ptrace_read(target, addr, backup, injectSharedLibrary_size);
 
-	// set up a buffer containing a bunch of nops, followed by an int 3 to
-	// return control back to us.
+	// set up a buffer to hold the code we're going to inject into the
+	// target process.
 	char* newcode = malloc(injectSharedLibrary_size * sizeof(char));
 	memset(newcode, 0, injectSharedLibrary_size * sizeof(char));
 
@@ -477,6 +510,9 @@ int main(int argc, char** argv)
 	// code.
 	ptrace_cont(target);
 
+	// make sure the target process received SIGCHLD after stopping.
+	checktargetsig(target);
+
 	// at this point, the target should have run malloc(). check its return
 	// value to see if it succeeded, and bail out cleanly if it didn't.
 	struct user_regs_struct malloc_regs;
@@ -485,7 +521,7 @@ int main(int argc, char** argv)
 	unsigned long long targetBuf = malloc_regs.rax;
 	if(targetBuf == 0)
 	{
-		printf("malloc() failed to allocate memory\n");
+		fprintf(stderr, "malloc() failed to allocate memory\n");
 		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
@@ -514,7 +550,7 @@ int main(int argc, char** argv)
 	// if rax is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
 	{
-		printf("__libc_dlopen_mode() failed to load %s\n", libname);
+		fprintf(stderr, "__libc_dlopen_mode() failed to load %s\n", libname);
 		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
