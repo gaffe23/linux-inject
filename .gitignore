@@ -32,3 +32,7 @@
 inject
 target
 library.so
+
+# Debugging files
+peda-session-*.txt
+.gdb_history
