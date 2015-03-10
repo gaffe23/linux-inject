@@ -3,7 +3,6 @@
 #include <string.h>
 #include <sys/user.h>
 #include <wait.h>
-#include <dlfcn.h>
 
 #include "../utils.h"
 #include "../ptrace.h"
@@ -120,14 +119,6 @@ unsigned char* findRet(void* endAddr)
 		retInstAddr--;
 	}
 	return retInstAddr;
-}
-
-// find the address of the given function within our currently-loaded libc
-long getFunctionAddress(char* funcName)
-{
-	void* self = dlopen("libc.so.6", RTLD_NOLOAD);
-	void* funcAddr = dlsym(self, funcName);
-	return (long)funcAddr;
 }
 
 int main(int argc, char** argv)

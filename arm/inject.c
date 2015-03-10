@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <sys/user.h>
 #include <wait.h>
-#include <dlfcn.h>
 
 #include "../utils.h"
 #include "../ptrace.h"
@@ -19,7 +18,6 @@
 // instruction.
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
-
 	// r1 = address of raise()
 	// r2 = address of malloc()
 	// r3 = address of __libc_dlopen_mode()
@@ -135,14 +133,6 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 // so that we can use it to more precisely figure out how long injectSharedLibrary() is
 void injectSharedLibrary_end()
 {
-}
-
-// find the address of the given function within our currently-loaded libc
-long getFunctionAddress(char* funcName)
-{
-	void* self = dlopen("libc.so.6", RTLD_NOLOAD);
-	void* funcAddr = dlsym(self, funcName);
-	return (long)funcAddr;
 }
 
 int main(int argc, char** argv)

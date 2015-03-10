@@ -3,6 +3,9 @@
 #include <dirent.h>
 #include <string.h>
 #include <unistd.h>
+#include <dlfcn.h>
+
+#include "utils.h"
 
 pid_t findProcessByName(char* processName)
 {
@@ -130,4 +133,12 @@ long getlibcaddr(pid_t pid)
 	}
 	fclose(fp);
 	return addr;
+}
+
+// find the address of the given function within our currently-loaded libc
+long getFunctionAddress(char* funcName)
+{
+	void* self = dlopen("libc.so.6", RTLD_NOLOAD);
+	void* funcAddr = dlsym(self, funcName);
+	return (long)funcAddr;
 }
