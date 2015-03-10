@@ -131,7 +131,7 @@ void ptrace_setregs(pid_t target, struct REG_TYPE* regs)
  * - int pid: pid of the target process
  *
  * returns:
- * - siginfo_t containing information about the most recent signal raised by
+ * - a siginfo_t containing information about the most recent signal raised by
  *   the target process
  */
 
