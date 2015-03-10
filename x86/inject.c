@@ -7,9 +7,6 @@
 #include "../utils.h"
 #include "../ptrace.h"
 
-#define INTEL_RET_INSTRUCTION 0xc3
-#define INTEL_INT3_INSTRUCTION 0xcc
-
 // this is the code that will actually be injected into the target process.
 // this code is responsible for loading the shared library into the target
 // process' address space.  first, it calls malloc() to allocate a buffer to
@@ -69,22 +66,6 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 // so that we can use it to more precisely figure out how long injectSharedLibrary() is
 void injectSharedLibrary_end()
 {
-}
-
-// starting at an address somewhere after the end of a function, search for the
-// "ret" instruction that ends it. this should be safe, because function
-// addresses are word-aligned and padded with "nop"s, so we'll basically search
-// through a bunch of "nop"s before finding our "ret". in other words, it's
-// unlikely that we'll run into a 0xc3 byte that corresponds to anything other
-// than an actual RET instruction.
-unsigned char* findRet(void* endAddr)
-{
-	unsigned char* retInstAddr = endAddr;
-	while(*retInstAddr != INTEL_RET_INSTRUCTION)
-	{
-		retInstAddr--;
-	}
-	return retInstAddr;
 }
 
 int main(int argc, char** argv)

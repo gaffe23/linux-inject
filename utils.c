@@ -142,3 +142,20 @@ long getFunctionAddress(char* funcName)
 	void* funcAddr = dlsym(self, funcName);
 	return (long)funcAddr;
 }
+
+// starting at an address somewhere after the end of a function, search for the
+// "ret" instruction that ends it. this should be safe, because function
+// addresses are word-aligned and padded with "nop"s, so we'll basically search
+// through a bunch of "nop"s before finding our "ret". in other words, it's
+// unlikely that we'll run into a 0xc3 byte that corresponds to anything other
+// than an actual RET instruction.
+// Note that this only applies to x86 and x86_64, and not ARM.
+unsigned char* findRet(void* endAddr)
+{
+	unsigned char* retInstAddr = endAddr;
+	while(*retInstAddr != INTEL_RET_INSTRUCTION)
+	{
+		retInstAddr--;
+	}
+	return retInstAddr;
+}
