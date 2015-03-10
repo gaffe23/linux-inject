@@ -113,7 +113,7 @@ long freespaceaddr(pid_t pid)
 {
 	FILE *fp;
 	char filename[30];
-	char line[85];
+	char line[850];
 	long addr;
 	char str[20];
 	char perms[5];
