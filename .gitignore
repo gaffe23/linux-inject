@@ -30,8 +30,8 @@
 
 # Specific binary names
 inject
-target
-library.so
+sample-target
+sample-library.so
 
 # Debugging files
 peda-session-*.txt

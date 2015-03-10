@@ -15,7 +15,7 @@
 
 * This is a security feature meant to prevent exactly the kind of mischief that this tool causes.
 
-* You can temporarily disable it (until the next reboot) using the following command:
+* You can temporarily disable it until the next reboot using the following command:
 
         echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
@@ -41,51 +41,60 @@
 
 * In one terminal, start up the sample target app, which simply outputs "sleeping..." each second:
 
-        ./target
+        ./sample-target
 
-* In another terminal, inject library.so into the target app:
+* In another terminal, inject sample-library.so into the target app:
 
-        ./inject target ./library.so
+        ./inject sample-target sample-library.so
 
 *  The output should look something like this:
 
  * First terminal:
 
-            $ ./target
+            $ ./sample-target
             sleeping...
             sleeping...
-            I just got loaded at 0x7f622fac5000
+            I just got loaded at 0x7f37d5cc6000
             sleeping...
             sleeping...
 
  * Second terminal:
 
-            $ ./inject target ./library.so
-            found process "target" with pid 31490
-            library "./library.so" successfully injected
+            $ ./inject sample-target sample-library.so
+            found process "sample-target" with pid 31490
+            library "sample-library.so" successfully injected
+	    $
 
 * If the injection fails, make sure your machine is configured to allow processes to `ptrace()` other processes that they did not create. See the "Caveat about `ptrace()`" section above.
 
-* If the injection was successful, the target app will display a message showing the address where the shared library was loaded, which you can verify by checking `/proc/[pid]/maps`:
+* If the injection was successful, the app will display a message showing the address where the sample shared library was loaded, which you can verify by checking `/proc/[pid]/maps`:
 
-        $ cat /proc/31490/maps
-        00400000-00401000 r-xp 00000000 ca:01 263080                             /home/gaffe/linux-inject/target
-        00600000-00601000 r--p 00000000 ca:01 263080                             /home/gaffe/linux-inject/target
-        00601000-00602000 rw-p 00001000 ca:01 263080                             /home/gaffe/linux-inject/target
-        02205000-02226000 rw-p 00000000 00:00 0                                  [heap]
-        7f622fac5000-7f622fac6000 r-xp 00000000 ca:01 267208                     /home/gaffe/linux-inject/library.so
-        7f622fac6000-7f622fcc5000 ---p 00001000 ca:01 267208                     /home/gaffe/linux-inject/library.so
-        7f622fcc5000-7f622fcc6000 r--p 00000000 ca:01 267208                     /home/gaffe/linux-inject/library.so
-        7f622fcc6000-7f622fcc7000 rw-p 00001000 ca:01 267208                     /home/gaffe/linux-inject/library.so
-        [...]
+	$ cat /proc/$(pgrep sample-target)/maps
+	[...]
+	7f37d5cc6000-7f37d5cc7000 r-xp 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+	7f37d5cc7000-7f37d5ec6000 ---p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+	7f37d5ec6000-7f37d5ec7000 r--p 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+	7f37d5ec7000-7f37d5ec8000 rw-p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+	[...]
 
-* From looking at the first column, you can see that the base address of library.so is 0x7f622fac5000, which matches the output given by the target app.
+* From looking at the first column, you can see that the base address of sample-library.so is 0x7f37d5cc6000, which matches the output given by the app after the injection.
 
-* You could also verify this by attaching `gdb` to the target app after the injection and running `info sharedlibrary` to see what shared libraries the process currently has loaded.
+* You could also verify this by attaching `gdb` to the target app after doing the injection and then running `info sharedlibrary` to see what shared libraries the process currently has loaded:
+
+	$ gdb -p $(pgrep sample-target)
+	[...]
+	(gdb) info sharedlibrary
+	From                To                  Syms Read   Shared Object Library
+	0x00007f37d628ded0  0x00007f37d628e9ce  Yes         /lib/x86_64-linux-gnu/libdl.so.2
+	0x00007f37d5ee74a0  0x00007f37d602c583  Yes         /lib/x86_64-linux-gnu/libc.so.6
+	0x00007f37d6491ae0  0x00007f37d64ac4e0  Yes         /lib64/ld-linux-x86-64.so.2
+	0x00007f37d5cc6670  0x00007f37d5cc67b9  Yes         /home/ubuntu/linux-inject/sample-library.so
+	(gdb)
+
 
 ## TODOs / Known Issues
 
-* It doesn't yet support specifying a target process by its PID, which is basic functionality that ought to be added.
+* It doesn't yet support specifying a target process by its PID, which is basic functionality that definitely needs to be added.
 
 * The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed. After the injection, it should return the processor to whatever mode it was in before (which will require it to keep track of what mode it was in originally).
 
