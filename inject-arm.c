@@ -5,8 +5,8 @@
 #include <sys/user.h>
 #include <wait.h>
 
-#include "../utils.h"
-#include "../ptrace.h"
+#include "utils.h"
+#include "ptrace.h"
 
 // this is the code that will actually be injected into the target process.
 // this code is responsible for loading the shared library into the target
