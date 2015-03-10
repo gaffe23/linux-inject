@@ -22,6 +22,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	// r2 = address of malloc()
 	// r3 = address of __libc_dlopen_mode()
 	// r4 = address of free()
+	// r5 = size of the path to the shared library we want to load
 	//
 	// unfortunately, each function call we make will wipe out these
 	// register values, so in order to save the function addresses, we need
@@ -57,18 +58,16 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm("push {r3}");	// __libc_dlopen_mode()
 	asm("push {r1}");	// raise()
 
-	// call malloc() to allocate 32 bytes to store the path to the shared library to inject.
-
-	// TODO: the amount of memory to allocate should really be determined
-	// by the actual length of the path to the library; as-is, this is not
-	// likely to work if the path is longer than 32 characters.
+	// call malloc() to allocate a buffer to store the path to the shared
+	// library to inject.
 
 	asm(
-		// specify 32 bytes
-		"mov r0, #32 \n"
+		// choose the amount of memory to allocate with malloc() based on the size
+		// of the path to the shared library passed via r5
+		"mov r0, r5 \n"
 		// call malloc(), whose address is already in r2
 		"blx r2 \n"
-		// copy return value r0 into r4 so that it doesn't get wiped out later
+		// copy return value r0 into r5 so that it doesn't get wiped out later
 		"mov r5, r0"
 	);
 
@@ -145,6 +144,15 @@ int main(int argc, char** argv)
 
 	char* processName = argv[1];
 	char* libname = argv[2];
+	char* libPath = realpath(libname, NULL);
+
+	if(!libPath)
+	{
+		fprintf(stderr, "can't find file \"%s\"\n", libname);
+		return 1;
+	}
+
+	int libPathLength = strlen(libPath) + 1;
 
 	int mypid = getpid();
 	long mylibcaddr = getlibcaddr(mypid);
@@ -206,7 +214,7 @@ int main(int argc, char** argv)
 	regs.uregs[2] = targetMallocAddr;
 	regs.uregs[3] = targetDlopenAddr;
 	regs.uregs[4] = targetFreeAddr;
-
+	regs.uregs[5] = libPathLength;
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
@@ -240,7 +248,7 @@ int main(int argc, char** argv)
 	// if r5 is 0 here, then malloc failed, and we should bail out cleanly.
 	if(targetBuf == 0)
 	{
-		printf("malloc() failed to allocate memory\n");
+		fprintf(stderr, "malloc() failed to allocate memory\n");
 		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
@@ -254,7 +262,7 @@ int main(int argc, char** argv)
 
 	// read the buffer returned by malloc() and copy the name of our shared
 	// library to that address inside the target process.
-	ptrace_write(target, targetBuf, libname, strlen(libname)*sizeof(char));
+	ptrace_write(target, targetBuf, libPath, libPathLength);
 
 	// continue the target's execution again in order to call dlopen.
 	ptrace_cont(target);
@@ -268,7 +276,7 @@ int main(int argc, char** argv)
 	// if r4 is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
 	{
-		printf("__libc_dlopen_mode() failed to load %s\n", libname);
+		fprintf(stderr, "__libc_dlopen_mode() failed to load %s\n", libname);
 		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
