@@ -42,7 +42,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		// now move the address of malloc() into r9
 		"mov %rdi,%r9 \n"
 		// choose the amount of memory to allocate with malloc() based on the size
-		// of the path to the shared library passed via ecx
+		// of the path to the shared library passed via rcx
 		"mov %rcx,%rdi \n"
 		// now call r9 in order to call malloc()
 		"callq *%r9 \n"
@@ -203,10 +203,7 @@ int main(int argc, char** argv)
 	regs.rsi = targetFreeAddr;
 	regs.rdx = targetDlopenAddr;
 	regs.rcx = libPathLength;
-
 	ptrace_setregs(target, &regs);
-	//printf("setting target regs to:\n");
-	//printregs(target);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
 

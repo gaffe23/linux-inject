@@ -26,16 +26,16 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	//   ebx = address of malloc() in target process
 	//   edi = address of __libc_dlopen_mode() in target process
 	//   esi = address of free() in target process
+	//   ecx = size of the path to the shared library we want to load
 
 	// for some reason it's adding 1 to esi, so subtract 1 from it
 	asm("dec %esi");
 
 	// call malloc() from within the target process
 	asm(
-		// allocate 32 bytes
-		// TODO: intelligently choose the amount of memory to allocate
-		// here instead of always allocating 32 bytes
-		"push $0x20 \n"
+		// choose the amount of memory to allocate with malloc() based on the size
+		// of the path to the shared library passed via ecx
+		"push %ecx \n"
 		// call malloc
 		"call *%ebx \n"
 		// copy return value into ebx
@@ -97,6 +97,15 @@ int main(int argc, char** argv)
 
 	char* processName = argv[1];
 	char* libname = argv[2];
+	char* libPath = realpath(libname, NULL);
+
+	if(!libPath)
+	{
+		fprintf(stderr, "can't find file \"%s\"\n", libname);
+		return 1;
+	}
+
+	int libPathLength = strlen(libPath) + 1;
 
 	int mypid = getpid();
 	long mylibcaddr = getlibcaddr(mypid);
@@ -150,6 +159,7 @@ int main(int argc, char** argv)
 	regs.ebx = targetMallocAddr;
 	regs.edi = targetDlopenAddr;
 	regs.esi = targetFreeAddr;
+	//regs.ecx = libPathLength;
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
@@ -193,7 +203,7 @@ int main(int argc, char** argv)
 	unsigned long targetBuf = malloc_regs.eax;
 	if(targetBuf == 0)
 	{
-		printf("malloc() failed to allocate memory\n");
+		fprintf(stderr, "malloc() failed to allocate memory\n");
 		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
@@ -208,7 +218,7 @@ int main(int argc, char** argv)
 	// read the current value of eax, which contains malloc's return value,
 	// and copy the name of our shared library to that address inside the
 	// target process.
-	ptrace_write(target, targetBuf, libname, strlen(libname)*sizeof(char));
+	ptrace_write(target, targetBuf, libPath, libPathLength);
 
 	// now call __libc_dlopen_mode() to attempt to load the shared library.
 	ptrace_cont(target);
@@ -222,7 +232,7 @@ int main(int argc, char** argv)
 	// if eax is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
 	{
-		printf("__libc_dlopen_mode() failed to load %s\n", libname);
+		fprintf(stderr, "__libc_dlopen_mode() failed to load %s\n", libname);
 		restoreStateAndDetach(target, addr, backup, injectSharedLibrary_size, oldregs);
 		free(backup);
 		free(newcode);
