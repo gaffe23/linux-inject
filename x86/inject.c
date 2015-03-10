@@ -9,93 +9,11 @@
 #include <signal.h>
 #include <wait.h>
 #include <dlfcn.h>
-#include "../utils.c"
+#include "../utils.h"
+#include "../ptrace.h"
 
 #define INTEL_RET_INSTRUCTION 0xc3
 #define INTEL_INT3_INSTRUCTION 0xcc
-
-void ptrace_attach(pid_t target)
-{
-	int waitpidstatus;
-
-	if(ptrace(PTRACE_ATTACH, target, NULL, NULL) == -1)
-	{
-		fprintf(stderr, "ptrace(PTRACE_ATTACH) failed\n");
-		exit(1);
-	}
-
-	if(waitpid(target, &waitpidstatus, WUNTRACED) != target)
-	{
-		fprintf(stderr, "waitpid(%d) failed\n", target);
-		exit(1);
-	}
-}
-
-void ptrace_detach(pid_t target)
-{
-	if(ptrace(PTRACE_DETACH, target, NULL, NULL) == -1)
-	{
-		fprintf(stderr, "ptrace(PTRACE_DETACH) failed\n");
-		exit(1);
-	}
-}
-
-void ptrace_getregs(pid_t target, struct user_regs_struct* regs)
-{
-	if(ptrace(PTRACE_GETREGS, target, NULL, regs) == -1)
-	{
-		fprintf(stderr, "ptrace(PTRACE_GETREGS) failed\n");
-		exit(1);
-	}
-}
-
-void ptrace_cont(pid_t target)
-{
-	if(ptrace(PTRACE_CONT, target, NULL, NULL) == -1)
-	{
-		fprintf(stderr, "ptrace(PTRACE_CONT) failed\n");
-		exit(1);
-	}
-}
-
-void ptrace_setregs(pid_t target, struct user_regs_struct* regs)
-{
-	if(ptrace(PTRACE_SETREGS, target, NULL, regs) == -1)
-	{
-		fprintf(stderr, "ptrace(PTRACE_SETREGS) failed\n");
-		exit(1);
-	}
-}
-
-// used http://www.ars-informatica.com/Root/Code/2010_04_18/LinuxPTrace.aspx as a reference for this
-void ptrace_read(int pid, unsigned long addr, void *vptr, int len)
-{
-	int bytesRead = 0;
-	int i = 0;
-	long word = 0;
-	long *ptr = (long *) vptr;
-
-	while (bytesRead < len)
-	{
-		word = ptrace(PTRACE_PEEKTEXT, pid, addr + bytesRead, NULL);
-		bytesRead += sizeof(word);
-		ptr[i++] = word;
-	}
-}
-
-// used http://www.ars-informatica.com/Root/Code/2010_04_18/LinuxPTrace.aspx as a reference for this
-void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
-{
-	int byteCount = 0;
-	long word = 0;
-
-	while (byteCount < len)
-	{
-		memcpy(&word, vptr + byteCount, sizeof(word));
-		word = ptrace(PTRACE_POKETEXT, pid, addr + byteCount, word);
-		byteCount += sizeof(word);
-	}
-}
 
 // this is the code that will actually be injected into the target process.
 // this code is responsible for loading the shared library into the target
