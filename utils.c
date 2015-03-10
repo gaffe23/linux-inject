@@ -7,6 +7,15 @@
 
 #include "utils.h"
 
+/* findProcessByName()
+ *
+ * Given the name of a process, try to find its PID by searching through /proc
+ * and reading /proc/[pid]/exe until we find a process whose name matches the
+ * given process.
+ *
+ * args: name of the process
+ * returns: pid of the process (or -1 if not found)
+ */
 pid_t findProcessByName(char* processName)
 {
 	if(processName == NULL)
@@ -81,9 +90,15 @@ pid_t findProcessByName(char* processName)
 	return -1;
 }
 
-// search the target process' /proc/pid/maps entry and find an executable region of
-// memory that we can use to run code in.
-// started from http://www.ars-informatica.com/Root/Code/2010_04_18/LinuxPTrace.aspx
+/* freespaceaddr()
+ *
+ * Search the target process' /proc/pid/maps entry and find an executable
+ * region of memory that we can use to run code in.
+ *
+ * args: pid of process to inspect
+ * returns: address of an executable region of memory inside that process'
+ * address space.
+ */
 long freespaceaddr(pid_t pid)
 {
 	FILE *fp;
@@ -109,8 +124,13 @@ long freespaceaddr(pid_t pid)
 	return addr;
 }
 
-// get the base address of libc inside process with pid "pid" using /proc/pid/maps
-// started from http://www.ars-informatica.com/Root/Code/2010_04_18/LinuxPTrace.aspx
+/* getlibcaddr()
+ *
+ * Gets the base address of libc.so inside a process by reading /proc/pid/maps.
+ *
+ * args: pid of process to inspect
+ * returns: base address of libc.so inside that process
+ */
 long getlibcaddr(pid_t pid)
 {
 	FILE *fp;
@@ -135,7 +155,13 @@ long getlibcaddr(pid_t pid)
 	return addr;
 }
 
-// find the address of the given function within our currently-loaded libc
+/* getFunctionAddress()
+ *
+ * Find the address of a function within our own loaded copy of libc.so.
+ *
+ * args: name of the function whose address we want to find
+ * returns: address of that function
+ */
 long getFunctionAddress(char* funcName)
 {
 	void* self = dlopen("libc.so.6", RTLD_NOLOAD);
@@ -143,13 +169,23 @@ long getFunctionAddress(char* funcName)
 	return (long)funcAddr;
 }
 
-// starting at an address somewhere after the end of a function, search for the
-// "ret" instruction that ends it. this should be safe, because function
-// addresses are word-aligned and padded with "nop"s, so we'll basically search
-// through a bunch of "nop"s before finding our "ret". in other words, it's
-// unlikely that we'll run into a 0xc3 byte that corresponds to anything other
-// than an actual RET instruction.
-// Note that this only applies to x86 and x86_64, and not ARM.
+/* findRet()
+ *
+ * Starting at an address somewhere after the end of a function, search for the
+ * "ret" instruction that ends it. We do this by searching for an 0xc3 byte,
+ * and assuming that it represents that function's "ret" instruction. This
+ * should be a safe assumption. Function addresses are word-aligned, and so
+ * there's usually extra space at the end of a function. This space is always
+ * padded with "nop"s, so we'll end up just searching through a series of of
+ * "nop"s before finding our "ret". In other words, it's unlikely that we'll
+ * run into a 0xc3 byte that corresponds to anything other than an actual "ret"
+ * instruction.
+ *
+ * Note that this function only applies to x86 and x86_64, and not ARM.
+ *
+ * args: ending address of the function to find the "ret" instruction for
+ * return: the address of the "ret" instruction of the function
+ */
 unsigned char* findRet(void* endAddr)
 {
 	unsigned char* retInstAddr = endAddr;
