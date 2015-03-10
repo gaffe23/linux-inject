@@ -69,28 +69,27 @@
 
 * If the injection was successful, the app will display a message showing the address where the sample shared library was loaded, which you can verify by checking `/proc/[pid]/maps`:
 
-	$ cat /proc/$(pgrep sample-target)/maps
-	[...]
-	7f37d5cc6000-7f37d5cc7000 r-xp 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
-	7f37d5cc7000-7f37d5ec6000 ---p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
-	7f37d5ec6000-7f37d5ec7000 r--p 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
-	7f37d5ec7000-7f37d5ec8000 rw-p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
-	[...]
+        $ cat /proc/$(pgrep sample-target)/maps
+        [...]
+        7f37d5cc6000-7f37d5cc7000 r-xp 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+        7f37d5cc7000-7f37d5ec6000 ---p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+        7f37d5ec6000-7f37d5ec7000 r--p 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+        7f37d5ec7000-7f37d5ec8000 rw-p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
+        [...]
 
 * From looking at the first column, you can see that the base address of sample-library.so is 0x7f37d5cc6000, which matches the output given by the app after the injection.
 
 * You could also verify this by attaching `gdb` to the target app after doing the injection and then running `info sharedlibrary` to see what shared libraries the process currently has loaded:
 
-	$ gdb -p $(pgrep sample-target)
-	[...]
-	(gdb) info sharedlibrary
-	From                To                  Syms Read   Shared Object Library
-	0x00007f37d628ded0  0x00007f37d628e9ce  Yes         /lib/x86_64-linux-gnu/libdl.so.2
-	0x00007f37d5ee74a0  0x00007f37d602c583  Yes         /lib/x86_64-linux-gnu/libc.so.6
-	0x00007f37d6491ae0  0x00007f37d64ac4e0  Yes         /lib64/ld-linux-x86-64.so.2
-	0x00007f37d5cc6670  0x00007f37d5cc67b9  Yes         /home/ubuntu/linux-inject/sample-library.so
-	(gdb)
-
+        $ gdb -p $(pgrep sample-target)
+        [...]
+        (gdb) info sharedlibrary
+        From                To                  Syms Read   Shared Object Library
+        0x00007f37d628ded0  0x00007f37d628e9ce  Yes         /lib/x86_64-linux-gnu/libdl.so.2
+        0x00007f37d5ee74a0  0x00007f37d602c583  Yes         /lib/x86_64-linux-gnu/libc.so.6
+        0x00007f37d6491ae0  0x00007f37d64ac4e0  Yes         /lib64/ld-linux-x86-64.so.2
+        0x00007f37d5cc6670  0x00007f37d5cc67b9  Yes         /home/ubuntu/linux-inject/sample-library.so
+        (gdb)
 
 ## TODOs / Known Issues
 
