@@ -9,11 +9,13 @@
 
 * Does not require the target process to have been built with `-ldl` flag, because it loads the shared library using `__libc_dlopen_mode()` from libc rather than `dlopen()` from libdl
 
-## Caveats
+## Caveat about `ptrace()`
 
-* Normally the OS will only search for shared libraries in the standard library paths, so it's currently necessary to either prepend `./` to the name of the shared library to inject or to just supply the full path to it.
+* On many Linux distributions, the kernel is configured by default to prevent any process from calling `ptrace()` on another process that it did not create (e.g. via `fork()`).
 
-* On many Linux distributions, the kernel is configured to prevent a process from calling `ptrace()` on any process that it did not create. This feature can be disabled temporarily (until the next reboot) using the following command:
+* This is a security feature meant to prevent exactly the kind of mischief that this tool causes.
+
+* You can temporarily disable it (until the next reboot) using the following command:
 
         echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
 
@@ -62,7 +64,7 @@
             found process "target" with pid 31490
             library "./library.so" successfully injected
 
-* If the injection fails, make sure your machine is configured to allow processes to `ptrace()` other processes that they did not create. See the "Caveats" section above.
+* If the injection fails, make sure your machine is configured to allow processes to `ptrace()` other processes that they did not create. See the "Caveat about `ptrace()`" section above.
 
 * If the injection was successful, the target app will display a message showing the address where the shared library was loaded, which you can verify by checking `/proc/[pid]/maps`:
 
@@ -79,28 +81,20 @@
 
 * From looking at the first column, you can see that the base address of library.so is 0x7f622fac5000, which matches the output given by the target app.
 
-* You could also verify this by attaching gdb to the target app and running `info sharedlibrary`.
+* You could also verify this by attaching `gdb` to the target app after the injection and running `info sharedlibrary` to see what shared libraries the process currently has loaded.
 
 ## TODOs / Known Issues
 
-* It doesn't yet support injecting by PID, which is basic functionality that ought to be added.
+* It doesn't yet support specifying a target process by its PID, which is basic functionality that ought to be added.
 
-* The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed.
+* The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed. After the injection, it should return the processor to whatever mode it was in before (which will require it to keep track of what mode it was in originally).
 
-* Factor out duplicated code, such as `findProcessByName` and the `ptrace_*` functions. Will need to add some arch-specific `#define`s for the `ptrace_*` functions, because x86 and x86_64 use `struct user_regs_struct`, while ARM uses `struct user_regs`.
+* The target process occasionally raises a `SIGTRAP` signal that is not caught by the injector, which causes the target process to core dump. I have a feeling this is a race condition between the target hitting the `SIGTRAP` and the injector trying to `ptrace()` the target again. If this is the case, it would mean that target hits the `SIGTRAP` too quickly sometimes, and it could likely be fixed by just adding a slight delay to slow down the target's execution.
 
-* Add a function that will automatically determine the full path to the specified shared library, so that the user doesn't have to prepend `./` to a library in the current directory.
-
-* The injector really should be `malloc()`ing the amount of memory required for the library path based on the actual length of the library path. As it stands, it just allocates a 32-byte buffer and assumes that will be enough, which is silly.
-
-* Try running this on a bunch of different Linux setups and fix any hiccups that might arise.
+* I need to try running this on a bunch of different Linux setups and fix any hiccups that might arise.
 
 * Make the inline assembly sections more concise, if possible.
 
 * Eliminate the need for inline assembly, if possible.
 
-* The target occasionally raises a `SIGTRAP` signal that is not caught by the injector, which causes the target process to core dump.
-
-* The ARM injector does not properly detect a failure to inject the library, so it says that the injection succeeded when it actually didn't.
-
-* Refactor/clean up the code that calculates function offsets; it calls dlopen() more times than necessary and should probably be put into a separate function.
+* Refactor/clean up the code that calculates function offsets; it calls `dlopen()` more times than necessary and should probably be put into a separate function.
