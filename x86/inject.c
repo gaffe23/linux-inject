@@ -1,14 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <dirent.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/ptrace.h>
 #include <sys/user.h>
-#include <signal.h>
 #include <wait.h>
 #include <dlfcn.h>
+
 #include "../utils.h"
 #include "../ptrace.h"
 
