@@ -83,6 +83,8 @@
 
 ## TODOs / Known Issues
 
+* It doesn't yet support injecting by PID, which is basic functionality that ought to be added.
+
 * The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed.
 
 * Factor out duplicated code, such as `findProcessByName` and the `ptrace_*` functions. Will need to add some arch-specific `#define`s for the `ptrace_*` functions, because x86 and x86_64 use `struct user_regs_struct`, while ARM uses `struct user_regs`.
