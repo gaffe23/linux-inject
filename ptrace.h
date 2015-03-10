@@ -7,3 +7,4 @@ siginfo_t ptrace_getsiginfo(pid_t target);
 void ptrace_read(int pid, unsigned long addr, void *vptr, int len);
 void ptrace_write(int pid, unsigned long addr, void *vptr, int len);
 void checktargetsig(int pid);
+void restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct user_regs_struct oldregs);

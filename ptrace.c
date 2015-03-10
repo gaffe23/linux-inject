@@ -127,3 +127,11 @@ void checktargetsig(int pid)
 		exit(1);
 	}
 }
+
+// restore backed up data and regs and let the target go on its merry way
+void restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct user_regs_struct oldregs)
+{
+	ptrace_write(target, addr, backup, datasize);
+	ptrace_setregs(target, &oldregs);
+	ptrace_detach(target);
+}
