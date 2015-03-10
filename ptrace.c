@@ -33,7 +33,7 @@ void ptrace_detach(pid_t target)
 	}
 }
 
-void ptrace_getregs(pid_t target, struct user_regs_struct* regs)
+void ptrace_getregs(pid_t target, struct REG_TYPE* regs)
 {
 	if(ptrace(PTRACE_GETREGS, target, NULL, regs) == -1)
 	{
@@ -54,7 +54,7 @@ void ptrace_cont(pid_t target)
 	checktargetsig(target);
 }
 
-void ptrace_setregs(pid_t target, struct user_regs_struct* regs)
+void ptrace_setregs(pid_t target, struct REG_TYPE* regs)
 {
 	if(ptrace(PTRACE_SETREGS, target, NULL, regs) == -1)
 	{
@@ -129,7 +129,7 @@ void checktargetsig(int pid)
 }
 
 // restore backed up data and regs and let the target go on its merry way
-void restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct user_regs_struct oldregs)
+void restoreStateAndDetach(pid_t target, unsigned long addr, void* backup, int datasize, struct REG_TYPE oldregs)
 {
 	ptrace_write(target, addr, backup, datasize);
 	ptrace_setregs(target, &oldregs);
