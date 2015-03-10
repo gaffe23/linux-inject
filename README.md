@@ -63,7 +63,7 @@
             $ ./inject sample-target sample-library.so
             found process "sample-target" with pid 31490
             library "sample-library.so" successfully injected
-	    $
+            $
 
 * If the injection fails, make sure your machine is configured to allow processes to `ptrace()` other processes that they did not create. See the "Caveat about `ptrace()`" section above.
 
