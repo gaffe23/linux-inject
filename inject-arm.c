@@ -273,7 +273,7 @@ int main(int argc, char** argv)
 	ptrace_getregs(target, &dlopen_regs);
 	unsigned long long libAddr = dlopen_regs.uregs[4];
 
-	// if r4 is 0 here, then dlopen failed, and we should bail out cleanly.
+	// if r5 is 0 here, then dlopen failed, and we should bail out cleanly.
 	if(libAddr == 0)
 	{
 		fprintf(stderr, "__libc_dlopen_mode() failed to load %s\n", libname);
