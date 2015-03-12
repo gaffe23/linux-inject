@@ -140,7 +140,7 @@ int main(int argc, char** argv)
 	regs.ebx = targetMallocAddr;
 	regs.edi = targetDlopenAddr;
 	regs.esi = targetFreeAddr;
-	//regs.ecx = libPathLength;
+	regs.ecx = libPathLength;
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
