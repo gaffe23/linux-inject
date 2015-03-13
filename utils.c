@@ -185,7 +185,7 @@ long getlibcaddr(pid_t pid)
 
 long getFunctionAddress(char* funcName)
 {
-	void* self = dlopen("libc.so.6", RTLD_NOLOAD);
+	void* self = dlopen("libc.so.6", RTLD_LAZY);
 	void* funcAddr = dlsym(self, funcName);
 	return (long)funcAddr;
 }
