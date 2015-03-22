@@ -17,7 +17,7 @@ sample-library.so: sample-library.c
 	$(CC) $(CFLAGS) -D_GNU_SOURCE -shared -o sample-library.so -fPIC sample-library.c
 
 sample-target: sample-target.c
-	$(CC) $(CFLAGS) -ldl -o sample-target sample-target.c
+	$(CC) $(CFLAGS) -o sample-target sample-target.c
 
 clean:
 	rm -f sample-library.so

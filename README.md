@@ -106,3 +106,5 @@
 * Eliminate the need for inline assembly, if possible.
 
 * Refactor/clean up the code that calculates function offsets; it calls `dlopen()` more times than necessary and should probably be put into a separate function.
+
+* Do better checking to verify that the specified shared library has actually been injected into the target process.
