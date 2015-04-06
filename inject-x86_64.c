@@ -109,11 +109,6 @@ void injectSharedLibrary_end()
 {
 }
 
-void usage(char* name)
-{
-	printf("usage: %s [-n process-name] [-p pid] [library-to-inject]\n", name);
-}
-
 int main(int argc, char** argv)
 {
 	if(argc < 4)

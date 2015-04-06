@@ -227,3 +227,18 @@ unsigned char* findRet(void* endAddr)
 	}
 	return retInstAddr;
 }
+
+/*
+ * usage()
+ *
+ * Print program usage and exit.
+ *
+ * args:
+ * - char* name: the name of the executable we're running out of
+ *
+ */
+
+void usage(char* name)
+{
+	printf("usage: %s [-n process-name] [-p pid] [library-to-inject]\n", name);
+}

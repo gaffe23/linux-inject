@@ -6,3 +6,4 @@ long freespaceaddr(pid_t pid);
 long getlibcaddr(pid_t pid);
 long getFunctionAddress(char* funcName);
 unsigned char* findRet(void* endAddr);
+void usage(char* name);
