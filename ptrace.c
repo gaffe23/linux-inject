@@ -15,6 +15,7 @@
  *
  * args:
  * - int pid: pid of the process to attach to
+ *
  */
 
 void ptrace_attach(pid_t target)
@@ -43,6 +44,7 @@ void ptrace_attach(pid_t target)
  * args:
  * - int pid: pid of the process to detach from. this process be ptrace()d by
  *   us beforehand in order for this to work.
+ *
  */
 
 void ptrace_detach(pid_t target)
@@ -65,6 +67,7 @@ void ptrace_detach(pid_t target)
  * - int pid: pid of the target process
  * - struct REG_TYPE* regs: a struct (either user_regs_struct or user_regs,
  *   depending on architecture) to store the resulting register data in
+ *
  */
 
 void ptrace_getregs(pid_t target, struct REG_TYPE* regs)
@@ -85,6 +88,7 @@ void ptrace_getregs(pid_t target, struct REG_TYPE* regs)
  *
  * args:
  * - int pid: pid of the target process
+ *
  */
 
 void ptrace_cont(pid_t target)
@@ -109,6 +113,7 @@ void ptrace_cont(pid_t target)
  * - struct REG_TYPE* regs: a struct (either user_regs_struct or user_regs,
  *   depending on architecture) containing the register state to be set in the
  *   target process
+ *
  */
 
 void ptrace_setregs(pid_t target, struct REG_TYPE* regs)
@@ -133,6 +138,7 @@ void ptrace_setregs(pid_t target, struct REG_TYPE* regs)
  * returns:
  * - a siginfo_t containing information about the most recent signal raised by
  *   the target process
+ *
  */
 
 siginfo_t ptrace_getsiginfo(pid_t target)
@@ -156,6 +162,7 @@ siginfo_t ptrace_getsiginfo(pid_t target)
  * - unsigned long addr: the address to start reading from
  * - void *vptr: a pointer to a buffer to read data into
  * - int len: the amount of data to read from the target
+ *
  */
 
 void ptrace_read(int pid, unsigned long addr, void *vptr, int len)
@@ -189,6 +196,7 @@ void ptrace_read(int pid, unsigned long addr, void *vptr, int len)
  * - void *vptr: a pointer to a buffer containing the data to be written to the
  *   target's address space
  * - int len: the amount of data to write to the target
+ *
  */
 
 void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
@@ -219,6 +227,7 @@ void ptrace_write(int pid, unsigned long addr, void *vptr, int len)
  *
  * args:
  * - int pid: pid of the target process
+ *
  */
 
 void checktargetsig(int pid)

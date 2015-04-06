@@ -19,6 +19,7 @@
  *
  * returns:
  * - a pid_t containing the pid of the process (or -1 if not found)
+ *
  */
 
 pid_t findProcessByName(char* processName)
@@ -107,6 +108,7 @@ pid_t findProcessByName(char* processName)
  * returns:
  * - a long containing the address of an executable region of memory inside the
  *   specified process' address space.
+ *
  */
 
 long freespaceaddr(pid_t pid)
@@ -145,6 +147,7 @@ long freespaceaddr(pid_t pid)
  * 
  * returns:
  * - a long containing the base address of libc.so inside that process
+ *
  */
 
 long getlibcaddr(pid_t pid)
@@ -181,6 +184,7 @@ long getlibcaddr(pid_t pid)
  *
  * returns:
  * - a long containing the address of that function
+ *
  */
 
 long getFunctionAddress(char* funcName)
@@ -211,6 +215,7 @@ long getFunctionAddress(char* funcName)
  *
  * return: an unsigned char* pointing to the address of the final "ret"
  * instruction of the specified function
+ *
  */
 
 unsigned char* findRet(void* endAddr)
