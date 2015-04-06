@@ -97,8 +97,14 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	);
 }
 
-// this function's only purpose in life is to be contiguous to injectSharedLibrary(),
-// so that we can use it to more precisely figure out how long injectSharedLibrary() is
+/*
+ * injectSharedLibrary_end()
+ *
+ * This function's only purpose is to be contiguous to injectSharedLibrary(),
+ * so that we can use its address to more precisely figure out how long
+ * injectSharedLibrary() is.
+ *
+ */
 void injectSharedLibrary_end()
 {
 }
