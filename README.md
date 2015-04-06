@@ -54,7 +54,7 @@
             $ ./sample-target
             sleeping...
             sleeping...
-            I just got loaded at 0x7f37d5cc6000
+            I just got loaded
             sleeping...
             sleeping...
 
@@ -76,8 +76,6 @@
         7f37d5ec6000-7f37d5ec7000 r--p 00000000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
         7f37d5ec7000-7f37d5ec8000 rw-p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
         [...]
-
-* From looking at the first column, you can see that the base address of sample-library.so is 0x7f37d5cc6000, which matches the output given by the app after the injection.
 
 * You could also verify this by attaching `gdb` to the target app after doing the injection and then running `info sharedlibrary` to see what shared libraries the process currently has loaded:
 
