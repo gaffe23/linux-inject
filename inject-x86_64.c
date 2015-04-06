@@ -109,21 +109,53 @@ void injectSharedLibrary_end()
 {
 }
 
+void usage(char* name)
+{
+	printf("usage: %s [-n process-name] [-p pid] [library-to-inject]\n", name);
+}
+
 int main(int argc, char** argv)
 {
-	if(argc < 3)
+	if(argc < 4)
 	{
-		printf("usage: %s [process-name] [library-to-inject]\n", argv[0]);
+		usage(argv[0]);
 		return 1;
 	}
 
-	char* processName = argv[1];
-	char* libname = argv[2];
+	char* command = argv[1];
+	char* commandArg = argv[2];
+	char* libname = argv[3];
 	char* libPath = realpath(libname, NULL);
+
+	char* processName = NULL;
+	pid_t target = 0;
 
 	if(!libPath)
 	{
 		fprintf(stderr, "can't find file \"%s\"\n", libname);
+		return 1;
+	}
+
+	if(!strcmp(command, "-n"))
+	{
+		processName = commandArg;
+		target = findProcessByName(processName);
+		if(target == -1)
+		{
+			fprintf(stderr, "doesn't look like a process named \"%s\" is running right now\n", processName);
+			return 1;
+		}
+
+		printf("targeting process \"%s\" with pid %d\n", processName, target);
+	}
+	else if(!strcmp(command, "-p"))
+	{
+		target = atoi(commandArg);
+		printf("targeting process with pid %d\n", target);
+	}
+	else
+	{
+		usage(argv[0]);
 		return 1;
 	}
 
@@ -144,14 +176,6 @@ int main(int argc, char** argv)
 	long freeOffset = freeAddr - mylibcaddr;
 	long dlopenOffset = dlopenAddr - mylibcaddr;
 
-	pid_t target = findProcessByName(processName);
-	if(target == -1)
-	{
-		fprintf(stderr, "doesn't look like a process named \"%s\" is running right now\n", processName);
-		return 1;
-	}
-
-	printf("found process \"%s\" with pid %d\n", processName, target);
 
 	// get the target process' libc address and use it to find the
 	// addresses of the syscalls we want to use inside the target process
