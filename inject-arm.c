@@ -14,8 +14,8 @@
 // hold the filename of the library to be loaded, then calls
 // __libc_dlopen_mode(), libc's implementation of dlopen(), to load the desired
 // shared library. finally, it calls free() to free the buffer containing the
-// library name, and then it breaks into the debugger with an "int $3"
-// instruction.
+// library name. see massive comment block below for more details on how this
+// is accomplished.
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
 	// r1 = address of raise()
@@ -25,13 +25,13 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	// r5 = size of the path to the shared library we want to load
 	//
 	// unfortunately, each function call we make will wipe out these
-	// register values, so in order to save the function addresses, we need
-	// to save them on the stack.
+	// register values, so in order to avoid losing the function addresses,
+	// we need to save them on the stack.
 	//
 	// here's the sequence of calls we're going to make:
 	//
 	// * malloc() - allocate a buffer to store the path to the shared
-	// library to load
+	// library we're injecting
 	//
 	// * raise() - raise a SIGTRAP signal to break into the target process
 	// so that we can check the return value of malloc() in order to know
@@ -128,8 +128,9 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	);
 }
 
-// this function's only purpose in life is to be contiguous to injectSharedLibrary(),
-// so that we can use it to more precisely figure out how long injectSharedLibrary() is
+// this function's only purpose is to be contiguous to injectSharedLibrary(),
+// so that we can use it to more precisely figure out how long
+// injectSharedLibrary() is
 void injectSharedLibrary_end()
 {
 }
