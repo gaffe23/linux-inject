@@ -7,14 +7,20 @@
 #include "utils.h"
 #include "ptrace.h"
 
-// this is the code that will actually be injected into the target process.
-// this code is responsible for loading the shared library into the target
-// process' address space.  first, it calls malloc() to allocate a buffer to
-// hold the filename of the library to be loaded, then calls
-// __libc_dlopen_mode(), libc's implementation of dlopen(), to load the desired
-// shared library. finally, it calls free() to free the buffer containing the
-// library name, and then it breaks into the debugger with an "int $3"
-// instruction.
+/*
+ * injectSharedLibrary()
+ *
+ * This is the code that will actually be injected into the target process.
+ * This code is responsible for loading the shared library into the target
+ * process' address space.  First, it calls malloc() to allocate a buffer to
+ * hold the filename of the library to be loaded. Then, it calls
+ * __libc_dlopen_mode(), libc's implementation of dlopen(), to load the desired
+ * shared library. Finally, it calls free() to free the buffer containing the
+ * library name, and breaks into the debugger with an "int $3" instruction. See
+ * the comments below for more details on how this is accomplished.
+ *
+ */
+
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
 	// here are the assumptions I'm making about what data will be located where
@@ -70,6 +76,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
  * injectSharedLibrary() is.
  *
  */
+
 void injectSharedLibrary_end()
 {
 }
