@@ -35,7 +35,7 @@
 
 ## Usage
 
-    ./inject [process-name] [library-to-inject]
+    ./inject [-n process-name] [-p pid] [library-to-inject]
 
 ## Sample
 
@@ -45,7 +45,7 @@
 
 * In another terminal, inject sample-library.so into the target app:
 
-        ./inject sample-target sample-library.so
+        ./inject -n sample-target sample-library.so
 
 *  The output should look something like this:
 
@@ -60,7 +60,7 @@
 
  * Second terminal:
 
-            $ ./inject sample-target sample-library.so
+            $ ./inject -n sample-target sample-library.so
             found process "sample-target" with pid 31490
             library "sample-library.so" successfully injected
             $
@@ -90,8 +90,6 @@
         (gdb)
 
 ## TODOs / Known Issues
-
-* It doesn't yet support specifying a target process by its PID, which is basic functionality that definitely needs to be added.
 
 * The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed. After the injection, it should return the processor to whatever mode it was in before (which will require it to keep track of what mode it was in originally).
 
