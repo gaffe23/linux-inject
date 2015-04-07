@@ -210,15 +210,6 @@ int main(int argc, char** argv)
 	long dlopenOffset = dlopenAddr - mylibcaddr;
 	long raiseOffset = raiseAddr - mylibcaddr;
 
-	pid_t target = findProcessByName(processName);
-	if(target == -1)
-	{
-		fprintf(stderr, "doesn't look like a process named \"%s\" is running right now\n", processName);
-		return 1;
-	}
-
-	printf("found process \"%s\" with pid %d\n", processName, target);
-
 	// get the target process' libc address and use it to find the
 	// addresses of the syscalls we want to use inside the target process
 	long targetLibcAddr = getlibcaddr(target);
