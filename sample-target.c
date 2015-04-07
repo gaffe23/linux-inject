@@ -3,6 +3,15 @@
 #include <time.h>
 #include <sys/ptrace.h>
 
+/*
+ * sleepfunc()
+ *
+ * The only purpose of this function is to output the message "sleeping..."
+ * once a second to provide a more concrete idea of when the sample library
+ * gets injected.
+ *
+ */
+
 void sleepfunc()
 {
 	struct timespec* sleeptime = malloc(sizeof(struct timespec));
@@ -18,6 +27,13 @@ void sleepfunc()
 
 	free(sleeptime);
 }
+
+/*
+ * main()
+ *
+ * Call sleepfunc(), which loops forever.
+ *
+ */
 
 int main()
 {
