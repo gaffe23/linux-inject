@@ -99,6 +99,8 @@ void ptrace_cont(pid_t target)
 		exit(1);
 	}
 
+	usleep(1000);
+
 	// make sure the target process received SIGTRAP after stopping.
 	checktargetsig(target);
 }
