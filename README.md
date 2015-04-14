@@ -89,13 +89,21 @@
         0x00007f37d5cc6670  0x00007f37d5cc67b9  Yes         /home/ubuntu/linux-inject/sample-library.so
         (gdb)
 
+## Compatibility
+
+* The x86 and x86_64 versions work on Ubuntu 14.04.02 x86_64.
+
+* The x86 and x86_64 versions work on Arch x86_64.
+
+* The ARM version works on Arch on both armv6 and armv7.
+
+* None of the versions seem to work on Debian. `__libc_dlopen_mode()` in Debian's libc does not load shared libraries in the same manner as Arch's and Ubuntu's versions do. I tested this on both x86_64 and armv6.
+
 ## TODOs / Known Issues
 
 * The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed. After the injection, it should return the processor to whatever mode it was in before (which will require it to keep track of what mode it was in originally).
 
-* The target process occasionally raises a `SIGTRAP` signal that is not caught by the injector, which causes the target process to core dump. I have a feeling this is a race condition between the target hitting the `SIGTRAP` and the injector trying to `ptrace()` the target again. If this is the case, it would mean that target hits the `SIGTRAP` too quickly sometimes, and it could likely be fixed by just adding a slight delay to slow down the target's execution.
-
-* I need to try running this on a bunch of different Linux setups and fix any hiccups that might arise.
+* Improve compatibility with other distributions.
 
 * Make the inline assembly sections more concise, if possible.
 
