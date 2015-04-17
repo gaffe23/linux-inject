@@ -3,6 +3,7 @@
 #include <string.h>
 #include <sys/user.h>
 #include <wait.h>
+#include <unistd.h>
 
 #include "utils.h"
 #include "ptrace.h"
