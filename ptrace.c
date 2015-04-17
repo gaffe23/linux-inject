@@ -4,6 +4,7 @@
 #include <sys/ptrace.h>
 #include <sys/user.h>
 #include <wait.h>
+#include <time.h>
 
 #include "ptrace.h"
 
@@ -93,13 +94,18 @@ void ptrace_getregs(pid_t target, struct REG_TYPE* regs)
 
 void ptrace_cont(pid_t target)
 {
+	struct timespec* sleeptime = malloc(sizeof(struct timespec));
+
+	sleeptime->tv_sec = 0;
+	sleeptime->tv_nsec = 1000000;
+
 	if(ptrace(PTRACE_CONT, target, NULL, NULL) == -1)
 	{
 		fprintf(stderr, "ptrace(PTRACE_CONT) failed\n");
 		exit(1);
 	}
 
-	usleep(1000);
+	nanosleep(sleeptime, NULL);
 
 	// make sure the target process received SIGTRAP after stopping.
 	checktargetsig(target);
