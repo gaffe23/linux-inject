@@ -17,8 +17,9 @@
  * hold the filename of the library to be loaded. Then, it calls
  * __libc_dlopen_mode(), libc's implementation of dlopen(), to load the desired
  * shared library. Finally, it calls free() to free the buffer containing the
- * library name, and breaks into the debugger by calling raise(). See the
- * comments below for more details on how this is accomplished.
+ * library name. Each time it needs to give control back to the injector
+ * process, it breaks back in by calling raise() to produce a SIGTRAP signal.
+ * See the comments below for more details on how this works.
  *
  */
 
@@ -37,22 +38,22 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	// here's the sequence of calls we're going to make:
 	//
 	// * malloc() - allocate a buffer to store the path to the shared
-	// library we're injecting
+	//   library we're injecting
 	//
 	// * raise() - raise a SIGTRAP signal to break into the target process
-	// so that we can check the return value of malloc() in order to know
-	// where to copy the shared library path to
+	//   so that we can check the return value of malloc() in order to know
+	//   where to copy the shared library path to
 	//
 	// * __libc_dlopen_mode() - load the shared library
 	//
 	// * raise() - raise a SIGTRAP signal to break into the target process
-	// to check the return value of __libc_dlopen_mode() in order to see
-	// whether it succeeded
+	//   to check the return value of __libc_dlopen_mode() in order to see
+	//   whether it succeeded
 	//
 	// * free() - free the buffer containing the path to the shared library
 	//
 	// * raise() - raise a SIGTRAP signal to break into the target process
-	// so that we can restore the parts of memory that we overwrote
+	//   so that we can restore the parts of memory that we overwrote
 	//
 	// we need to push the addresses of the functions we want to call in
 	// the reverse of the order we want to call them in (except for the
@@ -66,14 +67,14 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 
 	// call malloc() to allocate a buffer to store the path to the shared
 	// library to inject.
-
 	asm(
-		// choose the amount of memory to allocate with malloc() based on the size
-		// of the path to the shared library passed via r5
+		// choose the amount of memory to allocate with malloc() based
+		// on the size of the path to the shared library passed via r5
 		"mov r0, r5 \n"
 		// call malloc(), whose address is already in r2
 		"blx r2 \n"
-		// copy return value r0 into r5 so that it doesn't get wiped out later
+		// copy return value (which is in r0) into r5 so that it
+		// doesn't get wiped out later
 		"mov r5, r0"
 	);
 
@@ -81,7 +82,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm(
 		// pop off the stack to get the address of raise()
 		"pop {r1} \n"
-		// specify SIGTRAP
+		// specify SIGTRAP as the first argument
 		"mov r0, #5 \n"
 		// call raise()
 		"blx r1"
@@ -91,13 +92,15 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm(
 		// pop off the stack to get the address of __libc_dlopen_mode()
 		"pop {r2} \n"
-		// copy r5 (the malloc'd buffer) into r0 to make it the first argument to __libc_dlopen_mode()
+		// copy r5 (the address of the malloc'd buffer) into r0 to make
+		// it the first argument to __libc_dlopen_mode()
 		"mov r0, r5 \n"
 		// set the second argument to RTLD_LAZY
 		"mov r1, #1 \n"
 		// call __libc_dlopen_mode()
 		"blx r2 \n"
-		// copy return value r0 into r4 so that it doesn't get wiped out later
+		// copy return value (which is in r0) into r4 so that it
+		// doesn't get wiped out later
 		"mov r4, r0"
 	);
 
@@ -105,21 +108,24 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm(
 		// pop off the stack to get the address of raise()
 		"pop {r1} \n"
-		// specify SIGTRAP
+		// specify SIGTRAP as the first argument
 		"mov r0, #5 \n"
 		// call raise()
 		"blx r1"
 	);
 
-	// call free() in order to free the buffer containing the path to the shared library.
+	// call free() in order to free the buffer containing the path to the
+	// shared library.
 	asm(
 		// pop off the stack to get the address of free()
 		"pop {r2} \n"
-		// copy r5 (the malloc'd buffer) into r0 to make it the first argument to free()
+		// copy r5 (the malloc'd buffer) into r0 to make it the first
+		// argument to free()
 		"mov r0, r5 \n"
 		// call __libc_dlopen_mode()
 		"blx r2 \n"
-		// copy return value r0 into r4 so that it doesn't get wiped out later
+		// copy return value r0 into r4 so that it doesn't get wiped
+		// out later
 		"mov r4, r0"
 	);
 
@@ -127,7 +133,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 	asm(
 		// pop off the stack to get the address of raise()
 		"pop {r1} \n"
-		// specify SIGTRAP
+		// specify SIGTRAP as the first argument
 		"mov r0, #5 \n"
 		// call raise()
 		"blx r1"
@@ -142,6 +148,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
  * injectSharedLibrary() is.
  *
  */
+
 void injectSharedLibrary_end()
 {
 }
@@ -288,22 +295,25 @@ int main(int argc, char** argv)
 	// if we get here, then malloc likely succeeded, so now we need to copy
 	// the path to the shared library we want to inject into the buffer
 	// that the target process just malloc'd. this is needed so that it can
-	// be passed as an argument to dlopen later on.
+	// be passed as an argument to __libc_dlopen_mode later on.
 
 	// read the buffer returned by malloc() and copy the name of our shared
 	// library to that address inside the target process.
 	ptrace_write(target, targetBuf, libPath, libPathLength);
 
-	// continue the target's execution again in order to call dlopen.
+	// continue the target's execution again in order to call
+	// __libc_dlopen_mode.
 	ptrace_cont(target);
 
-	// check out what the registers look like after calling dlopen. 
+	// check out what the registers look like after calling
+	// __libc_dlopen_mode.
 	struct user_regs dlopen_regs;
 	memset(&dlopen_regs, 0, sizeof(struct user_regs));
 	ptrace_getregs(target, &dlopen_regs);
 	unsigned long long libAddr = dlopen_regs.uregs[4];
 
-	// if r5 is 0 here, then dlopen failed, and we should bail out cleanly.
+	// if r4 is 0 here, then __libc_dlopen_mode() failed, and we should
+	// bail out cleanly.
 	if(libAddr == 0)
 	{
 		fprintf(stderr, "__libc_dlopen_mode() failed to load %s\n", libname);

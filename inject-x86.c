@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/user.h>
 #include <wait.h>
-#include <unistd.h>
 
 #include "utils.h"
 #include "ptrace.h"
@@ -17,15 +17,16 @@
  * hold the filename of the library to be loaded. Then, it calls
  * __libc_dlopen_mode(), libc's implementation of dlopen(), to load the desired
  * shared library. Finally, it calls free() to free the buffer containing the
- * library name, and breaks into the debugger with an "int $3" instruction. See
- * the comments below for more details on how this is accomplished.
+ * library name. Each time it needs to give control back to the injector
+ * process, it breaks back in by executing an "int $3" instruction. See the
+ * comments below for more details on how this works.
  *
  */
 
 void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 {
-	// here are the assumptions I'm making about what data will be located where
-	// at the time the target executes this code:
+	// here are the assumptions I'm making about what data will be located
+	// where at the time the target executes this code:
 	//
 	//   ebx = address of malloc() in target process
 	//   edi = address of __libc_dlopen_mode() in target process
@@ -42,31 +43,35 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"push %ecx \n"
 		// call malloc
 		"call *%ebx \n"
-		// copy return value into ebx
+		// copy malloc's return value (i.e. the address of the allocated buffer) into ebx
 		"mov %eax, %ebx \n"
-		// break into debugger so we can get the return value
+		// break back in so that the injector can get the return value
 		"int $3"
 	);
 
 	// call __libc_dlopen_mode() to load the shared library
 	asm(
-		// flag = RTLD_LAZY
+		// 2nd argument to __libc_dlopen_mode(): flag = RTLD_LAZY
 		"push $1 \n"
-		// push malloc addr
+		// 1st argument to __libc_dlopen_mode(): filename = the buffer we allocated earlier
 		"push %ebx \n"
-		// call dlopen
+		// call __libc_dlopen_mode()
 		"call *%edi \n"
-		// break into debugger so we can check the return value
+		// break back in so that the injector can check the return value
 		"int $3"
 	);
 
-	// call free() on the previously malloc()ed buffer
+	// call free() on the previously malloc'd buffer
 	asm(
-		// push the address we want to free (the address we malloc'd earler)
+		// 1st argument to free(): ptr = the buffer we allocated earlier
 		"push %ebx \n"
-		// call free
+		// call free()
 		"call *%esi"
 	);
+
+	// we already overwrote the RET instruction at the end of this function
+	// with an INT 3, so at this point the injector will regain control of
+	// the target's execution.
 }
 
 /*
@@ -226,7 +231,7 @@ int main(int argc, char** argv)
 	// if we get here, then malloc likely succeeded, so now we need to copy
 	// the path to the shared library we want to inject into the buffer
 	// that the target process just malloc'd. this is needed so that it can
-	// be passed as an argument to dlopen later on.
+	// be passed as an argument to __libc_dlopen_mode later on.
 
 	// read the current value of eax, which contains malloc's return value,
 	// and copy the name of our shared library to that address inside the
@@ -236,7 +241,8 @@ int main(int argc, char** argv)
 	// now call __libc_dlopen_mode() to attempt to load the shared library.
 	ptrace_cont(target);
 
-	// check out what the registers look like after calling dlopen. 
+	// check out what the registers look like after calling
+	// __libc_dlopen_mode.
 	struct user_regs_struct dlopen_regs;
 	memset(&dlopen_regs, 0, sizeof(struct user_regs_struct));
 	ptrace_getregs(target, &dlopen_regs);

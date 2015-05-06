@@ -198,13 +198,13 @@ long getFunctionAddress(char* funcName)
  * findRet()
  *
  * Starting at an address somewhere after the end of a function, search for the
- * "ret" instruction that ends it. We do this by searching for an 0xc3 byte,
- * and assuming that it represents that function's "ret" instruction. This
- * should be a safe assumption. Function addresses are word-aligned, and so
- * there's usually extra space at the end of a function. This space is always
- * padded with "nop"s, so we'll end up just searching through a series of of
- * "nop"s before finding our "ret". In other words, it's unlikely that we'll
- * run into a 0xc3 byte that corresponds to anything other than an actual "ret"
+ * "ret" instruction that ends it. We do this by searching for a 0xc3 byte, and
+ * assuming that it represents that function's "ret" instruction. This should
+ * be a safe assumption. Function addresses are word-aligned, and so there's
+ * usually extra space at the end of a function. This space is always padded
+ * with "nop"s, so we'll end up just searching through a series of "nop"s
+ * before finding our "ret". In other words, it's unlikely that we'll run into
+ * a 0xc3 byte that corresponds to anything other than an actual "ret"
  * instruction.
  *
  * Note that this function only applies to x86 and x86_64, and not ARM.
@@ -213,8 +213,9 @@ long getFunctionAddress(char* funcName)
  * - void* endAddr: the ending address of the function whose final "ret"
  *   instruction we want to find
  *
- * return: an unsigned char* pointing to the address of the final "ret"
- * instruction of the specified function
+ * returns:
+ * - an unsigned char* pointing to the address of the final "ret" instruction
+ *   of the specified function
  *
  */
 

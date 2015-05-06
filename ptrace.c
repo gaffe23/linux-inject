@@ -43,8 +43,8 @@ void ptrace_attach(pid_t target)
  * completely ends our relationship with the target process.
  *
  * args:
- * - int pid: pid of the process to detach from. this process be ptrace()d by
- *   us beforehand in order for this to work.
+ * - int pid: pid of the process to detach from. this process must already be
+ *   ptrace()d by us in order for this to work.
  *
  */
 
