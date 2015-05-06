@@ -61,13 +61,13 @@
  * Second terminal:
 
             $ ./inject -n sample-target sample-library.so
-            found process "sample-target" with pid 31490
+            targeting process "sample-target" with pid 31490
             library "sample-library.so" successfully injected
             $
 
 * If the injection fails, make sure your machine is configured to allow processes to `ptrace()` other processes that they did not create. See the "Caveat about `ptrace()`" section above.
 
-* If the injection was successful, the app will display a message showing the address where the sample shared library was loaded, which you can verify by checking `/proc/[pid]/maps`:
+* You can verify that the injection was successful by checking `/proc/[pid]/maps`:
 
         $ cat /proc/$(pgrep sample-target)/maps
         [...]
@@ -77,7 +77,7 @@
         7f37d5ec7000-7f37d5ec8000 rw-p 00001000 ca:01 267321                     /home/ubuntu/linux-inject/sample-library.so
         [...]
 
-* You could also verify this by attaching `gdb` to the target app after doing the injection and then running `info sharedlibrary` to see what shared libraries the process currently has loaded:
+* You can also attach `gdb` to the target app and run `info sharedlibrary` to see what shared libraries the process currently has loaded:
 
         $ gdb -p $(pgrep sample-target)
         [...]
@@ -101,14 +101,21 @@
 
 ## TODOs / Known Issues
 
-* The ARM version currently only works if the target process is executing in ARM mode at the time of injection. In the future, it should be able to support injecting into processes that are executing in either ARM or Thumb mode, by detecting the current mode and switching it if needed. After the injection, it should return the processor to whatever mode it was in before (which will require it to keep track of what mode it was in originally).
+* Better support for targeting multi-thread/multi-process apps
+ * I seem to get crashes when trying to inject into larger applications
+ * Needs further investigation
 
-* Improve compatibility with other distributions.
+* Support both ARM and Thumb mode
+ * Currently only supports ARM mode
+ * Should just be a matter of checking LSB of PC and acting accordingly
 
-* Make the inline assembly sections more concise, if possible.
+* Do better checking to verify that the specified shared library has actually been injected into the target process
+ * Check `/proc/[pid]/maps` rather than just looking at the return value of `__libc_dlopen_mode()`
 
-* Eliminate the need for inline assembly, if possible.
+* Support more distros
+ * Currently only working on Ubuntu and Arch for certain architectures
+ * See "Compatibility" section above
 
-* Refactor/clean up the code that calculates function offsets; it calls `dlopen()` more times than necessary and should probably be put into a separate function.
-
-* Do better checking to verify that the specified shared library has actually been injected into the target process.
+* Possibly support more architectures?
+ * 64-bit ARM
+ * MIPS
