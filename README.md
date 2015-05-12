@@ -1,5 +1,5 @@
 # linux-inject
-**Tool for injecting a shared library into a currently running process on Linux**
+**Tool for injecting a shared object into a Linux process**
 
 * Provides the Linux equivalent of using `CreateRemoteThread()` on Windows to inject a DLL into a running process
 
@@ -7,7 +7,7 @@
 
 * Supports x86, x86_64, and ARM
 
-* Does not require the target process to have been built with `-ldl` flag, because it loads the shared library using `__libc_dlopen_mode()` from libc rather than `dlopen()` from libdl
+* Does not require the target process to have been built with `-ldl` flag, because it loads the shared object using `__libc_dlopen_mode()` from libc rather than `dlopen()` from libdl
 
 ## Caveat about `ptrace()`
 
@@ -109,7 +109,7 @@
  * Currently only supports ARM mode
  * Should just be a matter of checking LSB of PC and acting accordingly
 
-* Do better checking to verify that the specified shared library has actually been injected into the target process
+* Do better checking to verify that the specified shared object has actually been injected into the target process
  * Check `/proc/[pid]/maps` rather than just looking at the return value of `__libc_dlopen_mode()`
 
 * Support more distros
