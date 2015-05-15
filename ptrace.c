@@ -97,7 +97,7 @@ void ptrace_cont(pid_t target)
 	struct timespec* sleeptime = malloc(sizeof(struct timespec));
 
 	sleeptime->tv_sec = 0;
-	sleeptime->tv_nsec = 1000000;
+	sleeptime->tv_nsec = 5000000;
 
 	if(ptrace(PTRACE_CONT, target, NULL, NULL) == -1)
 	{
