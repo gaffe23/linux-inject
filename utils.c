@@ -175,6 +175,48 @@ long getlibcaddr(pid_t pid)
 }
 
 /*
+ * checkloaded()
+ *
+ * Given a process ID and the name of a shared library, check whether that
+ * process has loaded the shared library by reading entries in its
+ * /proc/[pid]/maps file.
+ *
+ * args:
+ * - pid_t pid: the pid of the process to check
+ * - char* libname: the library to search /proc/[pid]/maps for
+ *
+ * returns:
+ * - an int indicating whether or not the library has been loaded into the
+ *   process (1 = yes, 0 = no)
+ *
+ */
+
+int checkloaded(pid_t pid, char* libname)
+{
+	FILE *fp;
+	char filename[30];
+	char line[850];
+	long addr;
+	char perms[5];
+	char* modulePath;
+	sprintf(filename, "/proc/%d/maps", pid);
+	fp = fopen(filename, "r");
+	if(fp == NULL)
+		exit(1);
+	while(fgets(line, 850, fp) != NULL)
+	{
+		sscanf(line, "%lx-%*lx %*s %*s %*s %*d", &addr);
+		if(strstr(line, libname) != NULL)
+		{
+			fclose(fp);
+			return 1;
+		}
+	}
+	fclose(fp);
+	return 0;
+}
+
+/*
  * getFunctionAddress()
  *
  * Find the address of a function within our own loaded copy of libc.so.
