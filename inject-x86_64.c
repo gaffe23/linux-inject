@@ -303,8 +303,15 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	// if rax is nonzero, then our library was successfully injected.
-	printf("library \"%s\" successfully injected\n", libname);
+	// now check /proc/pid/maps to see whether injection was successful.
+	if(checkloaded(target, libname))
+	{
+		printf("\"%s\" successfully injected\n", libname);
+	}
+	else
+	{
+		fprintf(stderr, "could not inject \"%s\"\n", libname);
+	}
 
 	// as a courtesy, free the buffer that we allocated inside the target
 	// process. we don't really care whether this succeeds, so don't
