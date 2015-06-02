@@ -5,7 +5,7 @@ all:
 	$(error Please choose an architecture to build for: "make arm", "make x86", "make x86_64")
 
 arm: sample-target sample-library.so
-	$(CC) $(CFLAGS) -DARM -o inject utils.c ptrace.c inject-arm.c -ldl
+	$(CC) -marm $(CFLAGS) -DARM -o inject utils.c ptrace.c inject-arm.c -ldl
 
 x86: sample-target sample-library.so
 	$(CC) $(CFLAGS) -o inject utils.c ptrace.c inject-x86.c -ldl
