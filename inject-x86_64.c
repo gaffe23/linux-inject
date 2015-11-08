@@ -224,7 +224,7 @@ int main(int argc, char** argv)
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
-	int injectSharedLibrary_size = (int)injectSharedLibrary_end - (int)injectSharedLibrary;
+	int injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
 
 	// also figure out where the RET instruction at the end of
 	// injectSharedLibrary() lies so that we can overwrite it with an INT 3
@@ -233,7 +233,7 @@ int main(int argc, char** argv)
 	// which means that functions are padded with NOPs. as a result, even
 	// though we've found the length of the function, it is very likely
 	// padded with NOPs, so we need to actually search to find the RET.
-	int injectSharedLibrary_ret = (int)findRet(injectSharedLibrary_end) - (int)injectSharedLibrary;
+	int injectSharedLibrary_ret = (intptr_t)findRet(injectSharedLibrary_end) - (intptr_t)injectSharedLibrary;
 
 	// back up whatever data used to be at the address we want to modify.
 	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
