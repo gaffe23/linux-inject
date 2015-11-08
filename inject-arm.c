@@ -73,7 +73,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r0, r5 \n"
 		// call malloc(), whose address is already in r2
 		"blx r2 \n"
-		// copy return value (which is in r0) into r5 so that it
+		// copy the return value (which is in r0) into r5 so that it
 		// doesn't get wiped out later
 		"mov r5, r0"
 	);
@@ -99,7 +99,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r1, #1 \n"
 		// call __libc_dlopen_mode()
 		"blx r2 \n"
-		// copy return value (which is in r0) into r4 so that it
+		// copy the return value (which is in r0) into r4 so that it
 		// doesn't get wiped out later
 		"mov r4, r0"
 	);

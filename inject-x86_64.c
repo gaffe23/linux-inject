@@ -44,14 +44,14 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 
 	// call malloc() from within the target process
 	asm(
-		// save previous value of r9, because we're going to use it to call malloc() with
+		// save previous value of r9, because we're going to use it to call malloc()
 		"push %r9 \n"
 		// now move the address of malloc() into r9
 		"mov %rdi,%r9 \n"
 		// choose the amount of memory to allocate with malloc() based on the size
 		// of the path to the shared library passed via rcx
 		"mov %rcx,%rdi \n"
-		// now call r9 in order to call malloc()
+		// now call r9; malloc()
 		"callq *%r9 \n"
 		// after returning from malloc(), pop the previous value of r9 off the stack
 		"pop %r9 \n"
