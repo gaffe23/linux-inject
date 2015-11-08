@@ -21,17 +21,19 @@
 
 ## Compiling
 
-* arm:
+* Simply running `make` should automatically select and build for the correct architecture, but if this fails (or you would like to select the target manually), run one of the following make commands:
 
-        make arm
+    * arm:
 
-* x86:
+            make arm
 
-        make x86
+    * x86:
 
-* x86_64:
+            make x86
 
-        make x86_64
+    * x86_64:
+
+            make x86_64
 
 ## Usage
 

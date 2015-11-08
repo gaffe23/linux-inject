@@ -1,8 +1,20 @@
 CC	= clang
 CFLAGS	= -std=gnu99 -ggdb
+UNAME_M := $(shell uname -m)
+
+.PHONY: x86 x86_64 arm
 
 all:
-	$(error Please choose an architecture to build for: "make arm", "make x86", "make x86_64")
+ifeq ($(UNAME_M),x86_64)
+	$(MAKE) x86_64
+endif
+ifeq ($(UNAME_M),x86)
+	$(MAKE) x64
+endif
+ifneq (,$(findstring arm,$(UNAME_M)))
+	$(MAKE) arm
+endif
+
 
 arm: sample-target sample-library.so
 	$(CC) -marm $(CFLAGS) -DARM -o inject utils.c ptrace.c inject-arm.c -ldl
