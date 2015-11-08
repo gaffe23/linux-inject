@@ -73,7 +73,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r0, r5 \n"
 		// call malloc(), whose address is already in r2
 		"blx r2 \n"
-		// copy return value (which is in r0) into r5 so that it
+		// copy the return value (which is in r0) into r5 so that it
 		// doesn't get wiped out later
 		"mov r5, r0"
 	);
@@ -99,7 +99,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 		"mov r1, #1 \n"
 		// call __libc_dlopen_mode()
 		"blx r2 \n"
-		// copy return value (which is in r0) into r4 so that it
+		// copy the return value (which is in r0) into r4 so that it
 		// doesn't get wiped out later
 		"mov r4, r0"
 	);
@@ -255,7 +255,7 @@ int main(int argc, char** argv)
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
-	int injectSharedLibrary_size = (int)injectSharedLibrary_end - (int)injectSharedLibrary;
+	int injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
 
 	// back up whatever data used to be at the address we want to modify.
 	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
