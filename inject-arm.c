@@ -255,7 +255,7 @@ int main(int argc, char** argv)
 	ptrace_setregs(target, &regs);
 
 	// figure out the size of injectSharedLibrary() so we know how big of a buffer to allocate. 
-	int injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
+	size_t injectSharedLibrary_size = (intptr_t)injectSharedLibrary_end - (intptr_t)injectSharedLibrary;
 
 	// back up whatever data used to be at the address we want to modify.
 	char* backup = malloc(injectSharedLibrary_size * sizeof(char));
