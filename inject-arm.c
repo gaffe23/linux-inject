@@ -244,6 +244,9 @@ int main(int argc, char** argv)
 	// refers to the next instruction rather than the current instruction.
 	regs.uregs[15] = addr - 4;
 
+ 	// clear T bit, because new code may in ARM mode
+ 	regs.uregs[16] = regs.uregs[16] & 0xffffffdf;
+
 	// pass arguments to my function injectSharedLibrary() by loading them
 	// into the right registers. see comments in injectSharedLibrary() for
 	// more details.
