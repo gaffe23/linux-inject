@@ -35,6 +35,7 @@ void injectSharedLibrary(long mallocaddr, long freeaddr, long dlopenaddr)
 
 	// save addresses of free() and __libc_dlopen_mode() on the stack for later use
 	asm(
+		"and $0xfffffffffffff000, %rsp \n"
 		// rsi is going to contain the address of free(). it's going to get wiped
 		// out by the call to malloc(), so save it on the stack for later
 		"push %rsi \n"
